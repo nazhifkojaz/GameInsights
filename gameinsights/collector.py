@@ -83,13 +83,16 @@ class Collector:
                     "metacritic_score",
                     "release_date",
                     "content_rating",
+                    "is_free",
+                    "is_coming_soon",
+                    "recommendations",
                 ],
             ),
             SourceConfig(
                 self.gamalytic,
                 ["average_playtime_h", "copies_sold", "estimated_revenue", "owners", "languages"],
             ),
-            SourceConfig(self.steamspy, ["ccu", "tags"]),
+            SourceConfig(self.steamspy, ["ccu", "tags", "discount"]),
             SourceConfig(
                 self.steamcharts,
                 ["active_player_24h", "peak_active_player_all_time", "monthly_active_player"],
@@ -369,7 +372,6 @@ class Collector:
     def get_game_review(
         self, steam_appid: str, verbose: bool = True, review_only: bool = True
     ) -> pd.DataFrame:
-
         if not steam_appid:
             raise ValueError("steam_appid must be a non-empty.")
 

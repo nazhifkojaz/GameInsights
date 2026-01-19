@@ -16,6 +16,10 @@ class GameDataModel(BaseModel):
     developers: list[str] = Field(default_factory=list)
     publishers: list[str] = Field(default_factory=list)
     type: str | None = Field(default=None)
+    is_free: bool | None = Field(default=None)
+    is_coming_soon: bool | None = Field(default=None)
+    recommendations: int | None = Field(default=None)
+    discount: float = Field(default=float("nan"), exclude=True)
     price_currency: str | None = Field(default=None)
     price_initial: float = Field(default=float("nan"))
     price_final: float = Field(default=float("nan"))
@@ -110,6 +114,7 @@ class GameDataModel(BaseModel):
         "count_review",
         "count_playing",
         "count_retired",
+        "recommendations",
         mode="before",
     )
     def handle_integers(cls, v: str | int | float | None) -> int | None:
@@ -126,6 +131,7 @@ class GameDataModel(BaseModel):
         "price_final",
         "average_playtime_h",
         "achievements_percentage_average",
+        "discount",
         mode="before",
     )
     def handle_float(cls, v: str | int | float | None) -> float:
@@ -214,4 +220,5 @@ class GameDataModel(BaseModel):
         "categories",
         "genres",
         "tags",
+        "is_free",
     }

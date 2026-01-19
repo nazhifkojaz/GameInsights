@@ -5,7 +5,6 @@ from gameinsights.sources.steamstore import SteamStore
 
 
 class TestSteamStore:
-
     def test_fetch_success(self, source_fetcher, steamstore_success_response_data):
         result = source_fetcher(
             SteamStore,
@@ -16,6 +15,9 @@ class TestSteamStore:
 
         assert result["success"] is True
         assert result["data"]["steam_appid"] == 12345
+        assert result["data"]["is_free"] is True
+        assert result["data"]["is_coming_soon"] is False
+        assert result["data"]["recommendations"] == 1234
         assert result["data"]["type"] == "mock"
         assert len(result["data"]) == len(steamstore._STEAM_LABELS)
 

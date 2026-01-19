@@ -544,6 +544,7 @@ def steamspy_success_response_data():
         "name": "Mock Game: The Adventure",
         "positive": 1234,
         "negative": 12,
+        "discount": 25.5,
     }
 
 
@@ -579,6 +580,10 @@ def steamstore_success_response_data():
                 "type": "mock",
                 "name": "Mock Game: The Adventure",
                 "steam_appid": 12345,
+                "is_free": True,
+                "is_coming_soon": False,
+                "recommendations": {"total": 1234},
+                "release_date": {"coming_soon": False, "date": "Jan 1, 2025"},
                 "ratings": {"pegi": {"rating": "12", "descriptors": "Bad Language"}},
             },
         }
@@ -907,6 +912,10 @@ def raw_data_normal():
         "tags": ["RPG", "MOBA"],
         "average_playtime_h": 1234,
         "release_date": "Jan 1, 2025",
+        "is_free": True,
+        "is_coming_soon": False,
+        "recommendations": 1000,
+        "discount": 25.5,
     }
 
 

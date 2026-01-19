@@ -178,7 +178,11 @@ class SteamStore(BaseSource):
             "categories": [category.get("description") for category in categories],
             "genres": [genre.get("description") for genre in genres],
             "metacritic_score": data.get("metacritic", {}).get("score"),
-            "recommendations": data.get("recommendations", {}).get("total"),
+            "recommendations": (
+                data.get("recommendations", {}).get("total")
+                if isinstance(data.get("recommendations"), dict)
+                else data.get("recommendations")
+            ),
             "achievements": data.get("achievements", {}).get("total"),
             "content_rating": (
                 [
