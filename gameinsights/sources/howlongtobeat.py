@@ -32,7 +32,7 @@ _HOWLONGTOBEAT_LABELS = (
     "invested_co_count",
     "invested_mp_count",
     "count_comp",
-    "count_speedrun",
+    "count_speed_run",
     "count_backlog",
     "count_review",
     "review_score",

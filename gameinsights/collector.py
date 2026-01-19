@@ -134,7 +134,7 @@ class Collector:
                     "invested_co_count",
                     "invested_mp_count",
                     "count_comp",
-                    "count_speedrun",
+                    "count_speed_run",
                     "count_backlog",
                     "count_review",
                     "review_score",
@@ -234,9 +234,9 @@ class Collector:
                     results.append(user_data)
 
                 time.sleep(0.25)  # internal sleep to prevent over-calling
-            except Exception:
+            except Exception as e:
                 self.logger.log(
-                    f"Error fetching data for steamid {steamid}: e", level="error", verbose=True
+                    f"Error fetching data for steamid {steamid}: {e}", level="error", verbose=True
                 )
 
         if return_as == "dataframe":

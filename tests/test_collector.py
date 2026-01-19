@@ -5,7 +5,6 @@ from gameinsights.model import GameDataModel
 
 
 class TestCollector:
-
     def test_fetch_raw_data(self, collector_with_mocks):
         raw_data = collector_with_mocks._fetch_raw_data(steam_appid="12345")
 
@@ -58,3 +57,16 @@ class TestCollector:
             assert len(review_data["reviews"]) > 0
         else:
             assert "reviews" not in review_data.columns
+
+    def test_all_collector_fields_exist_in_model(self, collector_with_mocks):
+        """Verify all collector field names exist in GameDataModel."""
+        model_fields = set(GameDataModel.model_fields.keys())
+
+        all_configs = (
+            collector_with_mocks.id_based_sources + collector_with_mocks.name_based_sources
+        )
+        for config in all_configs:
+            for field in config.fields:
+                assert (
+                    field in model_fields
+                ), f"Field '{field}' from {config.source.__class__.__name__} not in GameDataModel"
