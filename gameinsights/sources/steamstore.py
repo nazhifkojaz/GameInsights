@@ -104,29 +104,21 @@ class SteamStore(BaseSource):
             - If unsuccessful, will return an error message indicating the failure reason.
         """
 
-        self.logger.log(
-            f"Fetching data for appid {steam_appid}.",
-            level="info",
-            verbose=verbose,
-        )
-
-        # ensure steam_appid is string
-        steam_appid = str(steam_appid)
+        steam_appid = self._prepare_identifier(steam_appid, verbose)
 
         # Make the request to steam store API
         params = {"appids": steam_appid, "cc": self.region, "l": self.language}
         response = self._make_request(params=params)
 
-        if response.status_code != 200:
+        data = self._fetch_and_parse_json(response, verbose)
+        if data is None:
             return self._build_error_result(
-                f"Failed to connect to API. Status code: {response.status_code}.", verbose=verbose
+                f"Failed to connect to API. Status code: {response.status_code}.",
+                verbose=verbose,
             )
-
-        data = response.json()
 
         # check if the response contains the expected data
         if steam_appid not in data or not data[steam_appid]["success"]:
-            # raise ValueError(f"Failed to fetch data for appid {appid} or appid is not available in the specified region/language.")
             return self._build_error_result(
                 f"Failed to fetch data for appid {steam_appid}, or appid is not available in the specified region ({self.region}) or language ({self.language}).",
                 verbose=verbose,
@@ -134,12 +126,9 @@ class SteamStore(BaseSource):
 
         data_packed = self._transform_data(data[steam_appid]["data"])
 
-        if selected_labels:
-            data_packed = {
-                label: data_packed[label] for label in self._filter_valid_labels(selected_labels)
-            }
-
-        return SuccessResult(success=True, data=data_packed)
+        return SuccessResult(
+            success=True, data=self._apply_label_filter(data_packed, selected_labels)
+        )
 
     def _transform_data(self, data: dict[str, Any]) -> dict[str, Any]:
         # repack / process the data if needed

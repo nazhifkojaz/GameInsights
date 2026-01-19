@@ -73,14 +73,7 @@ class Gamalytic(BaseSource):
             - If unsuccessful, will return an error message indicating the failure reason.
         """
 
-        self.logger.log(
-            f"Fetching data for appid {steam_appid}.",
-            level="info",
-            verbose=verbose,
-        )
-
-        # Ensure steam_appid is a string
-        steam_appid = str(steam_appid)
+        steam_appid = self._prepare_identifier(steam_appid, verbose)
 
         # Make the request to Gamalytic API
         response = self._make_request(endpoint=steam_appid)
@@ -89,20 +82,19 @@ class Gamalytic(BaseSource):
             return self._build_error_result(
                 f"Game with appid {steam_appid} is not found.", verbose=verbose
             )
-        elif response.status_code != 200:
+
+        data = self._fetch_and_parse_json(response, verbose)
+        if data is None:
             return self._build_error_result(
                 f"Failed to connect to API. Status code: {response.status_code}", verbose=verbose
             )
 
-        # Parse JSON repsonse if everything is fine and pack/process the data as labels we want
-        data_packed = self._transform_data(data=response.json())
+        # Parse JSON response if everything is fine and pack/process the data as labels we want
+        data_packed = self._transform_data(data=data)
 
-        if selected_labels:
-            data_packed = {
-                label: data_packed[label] for label in self._filter_valid_labels(selected_labels)
-            }
-
-        return SuccessResult(success=True, data=data_packed)
+        return SuccessResult(
+            success=True, data=self._apply_label_filter(data_packed, selected_labels)
+        )
 
     def _transform_data(self, data: dict[str, Any]) -> dict[str, Any]:
         # repack / process the data if needed
