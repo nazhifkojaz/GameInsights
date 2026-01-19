@@ -187,7 +187,7 @@ def _run_collect(args: argparse.Namespace) -> int:
             return 1
 
         frame = collector.get_games_active_player_data(steam_appids, verbose=verbose)
-        _output_data(frame, args.format, args.output)
+        _output_data(frame, args.format, args.output)  # type: ignore[arg-type]
         return 0
 
     records = collector.get_games_data(steam_appids, recap=args.recap, verbose=verbose)
@@ -196,9 +196,9 @@ def _run_collect(args: argparse.Namespace) -> int:
         for entry in selected_sources:
             allowed_fields.update(id_index.get(entry, set()))
             allowed_fields.update(name_index.get(entry, set()))
-        records = _filter_records(records, allowed_fields)
+        records = _filter_records(records, allowed_fields)  # type: ignore[arg-type]
 
-    _output_data(records, args.format, args.output)
+    _output_data(records, args.format, args.output)  # type: ignore[arg-type]
     return 0
 
 

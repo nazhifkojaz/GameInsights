@@ -1,4 +1,5 @@
 import time
+from dataclasses import dataclass
 from typing import Any, Literal, NamedTuple
 
 import pandas as pd
@@ -8,6 +9,22 @@ from gameinsights.model.game_data import GameDataModel
 from gameinsights.sources.base import SourceResult
 from gameinsights.utils import LoggerWrapper, metrics
 from gameinsights.utils.ratelimit import logged_rate_limited
+
+
+@dataclass
+class FetchResult:
+    """Result of fetching data for a single game/user.
+
+    Attributes:
+        identifier: The appid or steamid that was fetched
+        success: Whether the fetch was successful
+        data: The fetched data (if successful)
+        error: Error message (if failed)
+    """
+    identifier: str
+    success: bool
+    data: dict[str, Any] | None = None
+    error: str | None = None
 
 
 class SourceConfig(NamedTuple):
@@ -245,30 +262,38 @@ class Collector:
         return results
 
     def get_games_data(
-        self, steam_appids: str | list[str], recap: bool = False, verbose: bool = True
-    ) -> list[dict[str, Any]]:
+        self,
+        steam_appids: str | list[str],
+        recap: bool = False,
+        verbose: bool = True,
+        include_failures: bool = False,
+    ) -> list[dict[str, Any]] | tuple[list[dict[str, Any]], list[FetchResult]]:
         """Fetch game recap data.
         Game recap data includes game appid, name, release date, days since released, price and its currency, developer, publisher, genres, positive and negative reviews, review ratio, copies sold, estimated revenue, active players in the last 24 hours and in all time.
         Args:
             steam_appids (str): steam_appid of the game(s) to fetch data for.
             recap (bool): If True, will return the recap data (for reference: check _RECAP_LABELS).
             verbose (bool): If True, will log the fetching process.
+            include_failures (bool): If True, returns tuple of (successful_data, all_results_with_status).
 
         Returns:
-            list[dict[str, Any]]: List of games recap data.
+            list[dict[str, Any]]: List of games recap data (when include_failures=False).
+            tuple[list[dict[str, Any]], list[FetchResult]]: Tuple of successful data and all results (when include_failures=True).
 
         Behavior:
             - Returns an empty list if no data could be fetched.
             - Returns complete/partial data if all/any appids succeed.
+            - When include_failures=True, tracks which appids failed and why.
         """
 
         if not steam_appids:
-            return []
+            return [] if not include_failures else ([], [])
 
         if isinstance(steam_appids, (str, int)):
             steam_appids = [steam_appids]
 
         result = []
+        all_results: list[FetchResult] = []
         total = len(steam_appids)
         for idx, appid in enumerate(steam_appids, start=1):
             self.logger.log(
@@ -280,36 +305,49 @@ class Collector:
                 game_data = self._fetch_raw_data(appid, verbose=verbose)
                 payload = game_data.get_recap() if recap else game_data.model_dump()
                 result.append(payload)
+                all_results.append(FetchResult(identifier=str(appid), success=True, data=payload))
             except Exception as e:
                 self.logger.log(
-                    f"Error fecthing data for game {appid} with {e} error..",
+                    f"Error fetching data for game {appid} with {e} error..",
                     level="error",
                     verbose=True,
                 )
+                all_results.append(
+                    FetchResult(identifier=str(appid), success=False, error=str(e))
+                )
 
+        if include_failures:
+            return result, all_results
         return result
 
     def get_games_active_player_data(
-        self, steam_appids: str | list[str], fill_na_as: int = -1, verbose: bool = True
-    ) -> pd.DataFrame:
+        self,
+        steam_appids: str | list[str],
+        fill_na_as: int = -1,
+        verbose: bool = True,
+        include_failures: bool = False,
+    ) -> pd.DataFrame | tuple[pd.DataFrame, list[FetchResult]]:
         """Fetch active player data for multiple appids.
         Args:
             appids (list[str]): List of appids to fetch active player data for.
             fill_na_as (int): Value to fill NaN values in the DataFrame. Default is -1.
             verbose (str): If True, will log the fetching process.
+            include_failures (bool): If True, returns tuple of (dataframe, all_results_with_status).
 
         Returns:
-            pd.DataFrame: DataFrame containing active player data for all appids.
+            pd.DataFrame: DataFrame containing active player data for all appids (when include_failures=False).
+            tuple[pd.DataFrame, list[FetchResult]]: Tuple of DataFrame and all results (when include_failures=True).
         """
 
         if not steam_appids:
-            return pd.DataFrame()
+            return pd.DataFrame() if not include_failures else (pd.DataFrame(), [])
         if isinstance(steam_appids, (str, int)):
             steam_appids = [steam_appids]
 
         all_months: set[str] = set()
         all_data = []
         total = len(steam_appids)
+        all_results: list[FetchResult] = []
 
         for idx, appid in enumerate(steam_appids, start=1):
             self.logger.log(
@@ -347,11 +385,25 @@ class Collector:
                         }
                     )
                     all_months.update(monthly_data.keys())
+                    all_results.append(
+                        FetchResult(identifier=str(appid), success=True, data=game_record.copy())
+                    )
+                else:
+                    all_results.append(
+                        FetchResult(
+                            identifier=str(appid),
+                            success=False,
+                            error=active_player_data.get("error", "Unknown error"),
+                        )
+                    )
             except Exception as e:
                 self.logger.log(
                     f"Error fetching active player data for appid {appid}: {e}",
                     level="error",
                     verbose=True,
+                )
+                all_results.append(
+                    FetchResult(identifier=str(appid), success=False, error=str(e))
                 )
             all_data.append(game_record)
 
@@ -367,6 +419,8 @@ class Collector:
         # fill NaN values with the specified value
         df.fillna(fill_na_as, inplace=True)
 
+        if include_failures:
+            return df, all_results
         return df
 
     def get_game_review(
