@@ -116,3 +116,25 @@ class TestSteamCharts:
         assert result["success"] == expected_error["success"]
         assert "error" in result
         assert result["error"] == expected_error["error"] + str(status_code)
+
+    def test_fetch_malformed_row_is_skipped(
+        self,
+        source_fetcher,
+        steamcharts_malformed_row_response_data,
+    ):
+        """Test that rows with incorrect column count are logged and skipped."""
+        result = source_fetcher(
+            SteamCharts,
+            mock_kwargs={"text_data": steamcharts_malformed_row_response_data},
+            call_kwargs={"steam_appid": "12345"},
+        )
+
+        # Should succeed and skip the malformed row
+        assert result["success"] is True
+        assert result["data"]["steam_appid"] == "12345"
+
+        # Should have 2 valid rows (January and March), February is skipped
+        monthly_data = result["data"]["monthly_active_player"]
+        assert len(monthly_data) == 2
+        assert monthly_data[0]["month"] == "2025-01"
+        assert monthly_data[1]["month"] == "2025-03"

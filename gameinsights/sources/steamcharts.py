@@ -131,7 +131,14 @@ class SteamCharts(BaseSource):
         monthly_active_player = []
         for row in data.get("player_data_rows", []):
             cols = [col.get_text(strip=True) for col in row.find_all("td")]
-            month, avg_players, gain, percentage_gain, peak_players = cols[:5]
+            if len(cols) != 5:
+                self.logger.log(
+                    f"Unexpected row structure: expected 5 cells, got {len(cols)}",
+                    level="warning",
+                    verbose=True,
+                )
+                continue
+            month, avg_players, gain, percentage_gain, peak_players = cols
 
             monthly_active_player.append(
                 {

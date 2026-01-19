@@ -538,6 +538,30 @@ def steamcharts_error_response_player_data_table_incorrect_structure():
 
 
 @pytest.fixture
+def steamcharts_malformed_row_response_data():
+    """HTML response with a malformed row (3 cells instead of 5) to test row validation."""
+    data = """
+    <!DOCTYPE html>
+    <html>
+    <body>
+        <h1 id="app-title">Test Game</h1>
+        <div class="app-stat"><span class="num">1000</span></div>
+        <div class="app-stat"><span class="num">2000</span></div>
+        <div class="app-stat"><span class="num">3000</span></div>
+        <table class="common-table">
+            <tr><th>Last 30 Days</th><th></th><th></th><th></th><th></th></tr>
+            <tr><th>Month</th><th>Avg. Players</th><th>Gain</th><th>% Gain</th><th>Peak</th></tr>
+            <tr><td>January 2025</td><td>1000</td><td>+100</td><td>+10%</td><td>2000</td></tr>
+            <tr><td>February 2025</td><td>1200</td><td>+200</td></tr>  <!-- Malformed: only 3 cells -->
+            <tr><td>March 2025</td><td>1500</td><td>+300</td><td>+15%</td><td>3000</td></tr>
+        </table>
+    </body>
+    </html>
+    """
+    return data
+
+
+@pytest.fixture
 def steamspy_success_response_data():
     return {
         "appid": 12345,
