@@ -208,3 +208,67 @@ class BaseSource(ABC):
         self.logger.log(error_message, level="error", verbose=verbose)
 
         return ErrorResult(success=False, error=error_message)
+
+    def _prepare_identifier(self, identifier: str, verbose: bool = True) -> str:
+        """Convert identifier to string and log fetch start.
+
+        Args:
+            identifier: The game identifier (appid, name, etc.)
+            verbose: Whether to log
+
+        Returns:
+            String representation of identifier
+        """
+        identifier_str = str(identifier)
+        self.logger.log(
+            f"Fetching data for appid {identifier_str}.",
+            level="info",
+            verbose=verbose,
+        )
+        return identifier_str
+
+    def _fetch_and_parse_json(
+        self,
+        response: requests.Response,
+        verbose: bool = True,
+    ) -> dict[str, Any] | None:
+        """Parse JSON response with error handling.
+
+        Args:
+            response: HTTP response object
+            verbose: Whether to log errors
+
+        Returns:
+            Parsed JSON data, or None if request failed or parsing failed
+        """
+        if response.status_code != 200:
+            return None
+
+        try:
+            data = response.json()
+            # Type narrowing: requests.Response.json() returns Any, but we expect dict
+            if isinstance(data, dict):
+                return data
+            return None
+        except Exception:
+            # Don't log here - let the caller build the error result
+            # This allows custom error messages per source
+            return None
+
+    def _apply_label_filter(
+        self,
+        data: dict[str, Any],
+        selected_labels: list[str] | None,
+    ) -> dict[str, Any]:
+        """Filter data by selected labels if provided.
+
+        Args:
+            data: The data dictionary to filter
+            selected_labels: Labels to include (None = all labels)
+
+        Returns:
+            Filtered data dictionary
+        """
+        if selected_labels:
+            return {label: data[label] for label in self._filter_valid_labels(selected_labels)}
+        return data
