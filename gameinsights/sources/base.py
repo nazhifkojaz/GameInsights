@@ -114,18 +114,27 @@ class BaseSource(ABC):
         endpoint: str | None = None,
         headers: dict[str, Any] | None = None,
         params: dict[str, Any] | None = None,
+        json: dict[str, Any] | None = None,
+        data: str | bytes | None = None,
+        method: Literal["GET", "POST"] = "GET",
         retries: int = 3,
         backoff_factor: float = 0.5,
         timeout: float | tuple[float, float] = (30, 60),
     ) -> requests.Response:
         """Default implementation for request.
+
         Args:
             url (str): Optional url if _base_url is not set
             endpoint (str): Optional path to append to base URL (e.g., steam_appid)
             headers (dict | None): Optional headers dictionary
             params (dict | None): Optional query parameters dictionary
+            json (dict | None): Optional JSON body for POST requests (auto-serialized)
+            data (str | bytes | None): Optional raw body for POST requests
+            method (Literal["GET", "POST"]): HTTP method to use (default: "GET")
             retries (int): Max number of retries
             backoff_factor (float): Multiplier for sleep/cooldown between retries
+            timeout (float | tuple): Request timeout in seconds
+
         Return:
             requests.Response: The response of the request call.
         """
@@ -134,13 +143,15 @@ class BaseSource(ABC):
         if endpoint:
             final_url = urljoin(final_url + "/", endpoint.rstrip("/"))
 
-        # add user-agent in params
+        # Prepare headers with User-Agent
         ua = UserAgent()
-        params_ua = {"User-Agent": ua.random}
-        if params is None:
-            params = params_ua
+        if headers is None:
+            headers = {"User-Agent": ua.random}
         else:
-            params.update(params_ua)
+            # Only add User-Agent if not already present
+            if "User-Agent" not in headers:
+                headers = headers.copy()
+                headers["User-Agent"] = ua.random
 
         exception_to_retry = (ConnectionError, Timeout)
         exception_to_abort = (
@@ -151,7 +162,12 @@ class BaseSource(ABC):
 
         for attempts in range(1, retries + 2):
             try:
-                return self.session.get(final_url, headers=headers, params=params, timeout=timeout)
+                if method == "GET":
+                    return self.session.get(final_url, headers=headers, params=params, timeout=timeout)
+                else:  # POST
+                    return self.session.post(
+                        final_url, headers=headers, params=params, json=json, data=data, timeout=timeout
+                    )
             except exception_to_retry as e:
                 if attempts < retries:
                     sleep_duration = backoff_factor * (2 ** (attempts - 1))  # the cooldown period

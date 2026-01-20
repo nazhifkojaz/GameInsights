@@ -97,6 +97,82 @@ class TestBaseSource:
         assert result.status_code == base.SYNTHETIC_ERROR_CODE
         assert not result.ok
 
+    def test_make_request_post_success(self, mock_request_response, base_source_fixture):
+        """Test that _make_request works with POST method."""
+        # Mock the session's post method
+        mock_post = mock_request_response(
+            target_class=base_source_fixture.session,
+            method_name="post",
+            json_data={"ok": True},
+        )
+
+        result = base_source_fixture._make_request(
+            method="POST", json={"test": "data"}, headers={"Content-Type": "application/json"}
+        )
+
+        assert result.status_code == 200
+        assert mock_post.call_count == 1
+        # Verify the post was called with correct arguments
+        mock_post.assert_called_once()
+        call_kwargs = mock_post.call_args.kwargs
+        assert "json" in call_kwargs
+        assert call_kwargs["json"] == {"test": "data"}
+
+    def test_make_request_post_retries_on_exception(self, mock_request_response, base_source_fixture):
+        """Test that POST requests retry on connection errors."""
+        attempt = [
+            requests.exceptions.ConnectionError("fail 1"),
+            {"json_data": {"ok": True}},
+        ]
+        # Mock the session's post method
+        mock_post = mock_request_response(
+            target_class=base_source_fixture.session, method_name="post", side_effect=attempt
+        )
+
+        result = base_source_fixture._make_request(
+            method="POST", json={"test": "data"}
+        )
+
+        assert result.status_code == 200
+        assert mock_post.call_count == 2
+
+    def test_make_request_post_max_retries(self, mock_request_response, base_source_fixture):
+        """Test that POST requests respect max retries."""
+        attempt = [
+            requests.exceptions.Timeout("timeout 1"),
+            requests.exceptions.Timeout("timeout 2"),
+            requests.exceptions.Timeout("timeout 3"),
+        ]
+        # Mock the session's post method
+        mock_post = mock_request_response(
+            target_class=base_source_fixture.session, method_name="post", side_effect=attempt
+        )
+
+        result = base_source_fixture._make_request(method="POST", json={"test": "data"})
+
+        assert mock_post.call_count == 3
+        assert result.status_code == base.SYNTHETIC_ERROR_CODE
+        assert not result.ok
+
+    def test_make_request_post_with_data_parameter(self, mock_request_response, base_source_fixture):
+        """Test that POST requests work with raw data parameter."""
+        # Mock the session's post method
+        mock_post = mock_request_response(
+            target_class=base_source_fixture.session,
+            method_name="post",
+            json_data={"ok": True},
+        )
+
+        result = base_source_fixture._make_request(
+            method="POST", data=b"raw bytes", headers={"Content-Type": "application/octet-stream"}
+        )
+
+        assert result.status_code == 200
+        assert mock_post.call_count == 1
+        call_kwargs = mock_post.call_args.kwargs
+        assert "data" in call_kwargs
+        assert call_kwargs["data"] == b"raw bytes"
+
 
 class TestConnectionPooling:
     """Tests for session connection pooling functionality."""
