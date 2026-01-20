@@ -7,15 +7,15 @@ import requests
 
 # Import all fixtures from tests/fixtures/ directory
 # Pytest will automatically make these available to all tests
-from tests.fixtures.gamalytic_fixtures import *
-from tests.fixtures.hltb_fixtures import *
-from tests.fixtures.model_fixtures import *
-from tests.fixtures.steamachievements_fixtures import *
-from tests.fixtures.steamcharts_fixtures import *
-from tests.fixtures.steamreview_fixtures import *
-from tests.fixtures.steamspy_fixtures import *
-from tests.fixtures.steamstore_fixtures import *
-from tests.fixtures.steamuser_fixtures import *
+from tests.fixtures.gamalytic_fixtures import *  # noqa: F403
+from tests.fixtures.hltb_fixtures import *  # noqa: F403
+from tests.fixtures.model_fixtures import *  # noqa: F403
+from tests.fixtures.steamachievements_fixtures import *  # noqa: F403
+from tests.fixtures.steamcharts_fixtures import *  # noqa: F403
+from tests.fixtures.steamreview_fixtures import *  # noqa: F403
+from tests.fixtures.steamspy_fixtures import *  # noqa: F403
+from tests.fixtures.steamstore_fixtures import *  # noqa: F403
+from tests.fixtures.steamuser_fixtures import *  # noqa: F403
 
 
 @pytest.fixture
@@ -159,15 +159,13 @@ def collector_with_mocks(mock_request_response, monkeypatch, request):
         SteamReview,
         SteamSpy,
         SteamStore,
-        howlongtobeat,
     )
 
-    class SearchInformation:
-        def __init__(self, *args, **kwargs):
-            self.api_key = "mock_api_key"
-            self.search_url = "api/s/"
+    # Mock the HowLongToBeat token method
+    def mock_get_token(*args, **kwargs):
+        return "mock_token"
 
-    monkeypatch.setattr(howlongtobeat, "SearchInformation", SearchInformation)
+    monkeypatch.setattr(HowLongToBeat, "_get_search_token", mock_get_token)
 
     sources_payloads = [
         (

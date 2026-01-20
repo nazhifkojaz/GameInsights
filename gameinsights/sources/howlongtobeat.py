@@ -1,6 +1,17 @@
 # ---------------------------
-# This code is based on the original code from HowLongToBeatAPI (https://github.com/ScrappyCocco/HowLongToBeat-PythonAPI/)
-# But modified to fit this project, all credit goes to the original author
+# HowLongToBeat Source
+# Fetches game completion time data from howlongtobeat.com
+#
+# NOTE: This source scrapes data from HowLongToBeat (howlongtobeat.com).
+# This implementation is for educational/personal use only.
+# Please respect their service and consider using official APIs if available.
+#
+# API Strategy:
+# 1. GET /api/search/init - Obtain session token
+# 2. POST /api/search with x-auth-token header - Search for games
+# 3. GET /game/{id} and parse __NEXT_DATA__ - Get full data
+#
+# Data Attribution: Completion times are sourced from howlongtobeat.com
 # ---------------------------
 
 import json
@@ -8,9 +19,8 @@ import re
 from typing import Any, cast
 
 import requests
-from bs4 import BeautifulSoup
-from bs4.element import Tag
 from fake_useragent import UserAgent
+from requests.exceptions import ConnectionError, Timeout
 
 from gameinsights.sources.base import BaseSource, SourceResult, SuccessResult
 from gameinsights.utils.ratelimit import logged_rate_limited
@@ -41,273 +51,247 @@ _HOWLONGTOBEAT_LABELS = (
 )
 
 
-class SearchInformation:
-    """Class to hold search information extracted from the HLTB script."""
-
-    def __init__(self, title_headers: dict[str, Any]) -> None:
-        self.api_key: str | None = None
-        self.search_url: str | None = None
-        self._get_search_informations(title_headers=title_headers)
-        if self.search_url:
-            self.search_url = self.search_url.lstrip("/")
-
-    def _extract_api_from_script(self, script_content: str) -> str | None:
-        """Extract the API key from the script content.
-        Args:
-            script_content (str): The content of the script to search for the API key.
-        Returns:
-            str | None: The extracted API key if found, otherwise None.
-        """
-
-        api_key_pattern = r'users\s*:\s*{\s*id\s*:\s*"([^"]+)"'
-        matches = re.findall(api_key_pattern, script_content)
-
-        if matches:
-            key = "".join(matches)
-            return key
-
-        concat_api_key_pattern = r'\/api\/\w+\/"(?:\.concat\("[^"]*"\))*'
-        matches = re.findall(concat_api_key_pattern, script_content)
-
-        if matches:
-            matches = str(matches).split(".concat")
-            matches = [re.sub(r'["\(\)\[\]\']', "", match) for match in matches[1:]]
-            key = "".join(matches)
-            return key
-
-        return None
-
-    def _extract_search_url_script(self, script_content: str) -> str | None:
-        """Extract the search URL from the script content.
-        Args:
-            script_content (str): The content of the script to search for the search URL.
-        Returns:
-            str | None: The extracted search URL if found, otherwise None.
-        """
-        pattern = re.compile(
-            r'fetch\(\s*["\'](\/api\/[^"\']*)["\']'  # Matches the endpoint
-            r'((?:\s*\.concat\(\s*["\']([^"\']*)["\']\s*\))+)'  # Captures concatenated strings
-            r"\s*,",  # Matches up to the comma
-            re.DOTALL,
-        )
-        matches = pattern.finditer(script_content)
-        for match in matches:
-            endpoint = match.group(1)
-            concat_calls = match.group(2)
-            # Extract all concatenated strings
-            concat_strings = re.findall(r'\.concat\(\s*["\']([^"\']*)["\']\s*\)', concat_calls)
-            concatenated_str = "".join(concat_strings)
-            # Check if the concatenated string matches the known string
-            if concatenated_str == self.api_key:
-                return endpoint
-        # Unable to find :(
-        return None
-
-    def _get_search_informations(self, title_headers: dict[str, Any]) -> None:
-        response = requests.get(HowLongToBeat.BASE_URL, headers=title_headers, timeout=60)
-
-        if response.status_code == 200 and response.text:
-            soup = BeautifulSoup(response.text, "html.parser")
-            scripts = soup.find_all("script", src=True)
-
-            matching_scripts: list[str] = []
-            non_matching_scripts: list[str] = []
-
-            for script in scripts:
-                if not isinstance(script, Tag):
-                    continue
-
-                src_attr = script.get("src")
-                if isinstance(src_attr, str):
-                    if "_app-" in src_attr:
-                        matching_scripts.append(src_attr)
-                    else:
-                        non_matching_scripts.append(src_attr)
-
-            # look for scripts that provide the api key
-            self._process_script(matching_scripts, title_headers=title_headers)
-
-            # if we still don't have the api key, try to get it from the other scripts
-            if self.api_key is None:
-                self._process_script(non_matching_scripts, title_headers=title_headers)
-
-    def _process_script(self, script_urls: list[str], title_headers: dict[str, Any]) -> None:
-        """Process the script content to extract API key and search URL.
-        Args:
-            script_urls (list[str]): List of script URLs to process.
-        """
-        for script_url in script_urls:
-            script_url = HowLongToBeat.BASE_URL + script_url
-            script_response = requests.get(script_url, headers=title_headers, timeout=60)
-            if script_response.status_code == 200 and script_response.text:
-                self.api_key = self._extract_api_from_script(script_response.text)
-                self.search_url = self._extract_search_url_script(script_response.text)
-                if self.api_key:
-                    break
-
-
 class HowLongToBeat(BaseSource):
-    """HowLongToBeat source for fetching game completion times."""
+    """HowLongToBeat source for fetching game completion times.
 
-    BASE_URL = "https://howlongtobeat.com/"
+    The source uses a three-step approach:
+    1. Fetch a session token from /api/search/init
+    2. Search for games using /api/search with x-auth-token header
+    3. Fetch full game data from /game/{id} and parse __NEXT_DATA__
+    """
+
+    BASE_URL = "https://www.howlongtobeat.com/"
     REFERER_HEADER = BASE_URL
     _valid_labels: tuple[str, ...] = _HOWLONGTOBEAT_LABELS
     _valid_labels_set: frozenset[str] = frozenset(_HOWLONGTOBEAT_LABELS)
 
-    def __init__(self) -> None:
-        """Initialize the HowLongToBeat source."""
-        super().__init__()
-        title_headers = HowLongToBeat._get_title_request_headers()
-        self._search_info_data: SearchInformation = SearchInformation(title_headers=title_headers)
-
     @logged_rate_limited(calls=60, period=60)  # web scrape -> 60 requests per minute to be polite
     def fetch(
-        self, game_name: str, verbose: bool = True, selected_labels: list[str] | None = None
+        self,
+        game_name: str,
+        verbose: bool = True,
+        selected_labels: list[str] | None = None,
     ) -> SourceResult:
         """Fetch game completion data from HowLongToBeat based on game name.
+
         Args:
-            game_name (str): The name of the game to search for.
-            verbose (bool): If True, will log the fetching process.
-            selected_labels (list[str] | None): A list of labels to filter the data.
+            game_name: The name of the game to search for.
+            verbose: If True, will log the fetching process.
+            selected_labels: A list of labels to filter the data.
 
         Returns:
-            SourceResult: A dictionary containing the status, completion time data, and any error message if applicable.
-
-        Behavior:
-            - If successful, will return a SuccessResult with the data based on the selected_labels or _valid_labels.
-            - If unsuccessful, will return an error message indicating the failure reason.
+            SourceResult: A dictionary containing the status, completion time data,
+                and any error message if applicable.
         """
-
         self.logger.log(
             f"Fetching data for game '{game_name}'",
             level="info",
             verbose=verbose,
         )
 
-        # Make the request
-        search_response = self._fetch_search_results(game_name)
-        if not search_response or not search_response.text:
+        # Step 1: Get session token
+        token = self._get_search_token()
+        if not token:
+            return self._build_error_result("Failed to obtain search token.", verbose=verbose)
+
+        # Step 2: Search for the game
+        search_response = self._fetch_search_results(game_name, token)
+        if not search_response:
             return self._build_error_result("Failed to fetch data.", verbose=verbose)
 
         try:
-            search_result_raw = json.loads(search_response.text)
+            search_result = cast(dict[str, Any], json.loads(search_response.text))
         except json.JSONDecodeError:
             return self._build_error_result("Failed to parse search response.", verbose=verbose)
 
-        if not isinstance(search_result_raw, dict):
+        if not isinstance(search_result, dict):
             return self._build_error_result("Unexpected search response format.", verbose=verbose)
 
-        search_result = cast(dict[str, Any], search_result_raw)
-
-        # if the search result count is 0, then the game is not found
-        if search_result["count"] == 0:
+        if search_result.get("count") == 0:
             return self._build_error_result("Game is not found.", verbose=verbose)
 
-        # if not, then get the first data in the search result
-        data_packed = self._transform_data(data=search_result["data"][0])
+        # Step 3: Get the first search result and fetch full data
+        first_result = search_result["data"][0]
+        game_id = first_result.get("game_id")
+
+        if not game_id:
+            return self._build_error_result("No game ID in search result.", verbose=verbose)
+
+        # Step 4: Fetch full game data from the game page
+        full_data = self._fetch_game_page(game_id)
+        if not full_data:
+            # Fall back to search result data if page fetch fails
+            full_data = first_result
+
+        # Transform and filter data
+        data_packed = self._transform_data(data=full_data)
 
         if selected_labels:
             data_packed = {
-                label: data_packed[label] for label in self._filter_valid_labels(selected_labels)
+                label: data_packed[label]
+                for label in self._filter_valid_labels(selected_labels)
+                if label in data_packed
             }
 
         return SuccessResult(success=True, data=data_packed)
 
-    def _transform_data(self, data: dict[str, Any]) -> dict[str, Any]:
-        # repack / process the data if needed
-        return {label: data.get(label, None) for label in self._valid_labels}
-
-    def _fetch_search_results(self, game_name: str, page: int = 1) -> requests.Response:
-        """Send a web request to HowLongToBeat to fetch game data.
-        Args:
-            game_name (str): The name of the game to search for.
-            page (int): The page number to fetch results from. (default is 1).
+    def _get_user_agent(self) -> str:
+        """Get a random user agent string.
 
         Returns:
-            str: HTML response text if the request is successful.
+            A random user agent string.
         """
-        if not hasattr(self, "_search_info_data") or self._search_info_data is None:
-            title_headers = HowLongToBeat._get_title_request_headers()
-            self._search_info_data = SearchInformation(title_headers=title_headers)
+        return UserAgent().random
 
-        search_headers = HowLongToBeat._get_search_request_headers()
+    def _get_search_token(self) -> str | None:
+        """Fetch a search token from the init endpoint.
 
-        # if the api key is not found, then we cannot proceed
-        if not self._search_info_data.api_key:
-            return self._create_synthetic_response(
-                url=HowLongToBeat.BASE_URL,
-                reason="Missing HowLongToBeat API key.",
-            )
-
-        search_url = HowLongToBeat.BASE_URL + "api/s/"
-        if self._search_info_data.search_url:
-            search_url = HowLongToBeat.BASE_URL + self._search_info_data.search_url
-
-        search_url_with_key = search_url + self._search_info_data.api_key
-        payload = HowLongToBeat._generate_data_payload(game_name, page, None)
-        response_with_key = requests.post(
-            search_url_with_key, headers=search_headers, data=payload, timeout=60
-        )
-
-        if response_with_key.status_code == 200:
-            return response_with_key
-
-        # if the request failed, try to use the search URL with API key in the payload
-        payload = HowLongToBeat._generate_data_payload(game_name, page, self._search_info_data)
-        response_with_payload = requests.post(
-            search_url, headers=search_headers, data=payload, timeout=60
-        )
-
-        if response_with_payload.status_code == 200:
-            return response_with_payload
-
-        return self._create_synthetic_response(
-            url=search_url,
-            reason=(
-                "Failed to fetch HowLongToBeat data: "
-                f"status {response_with_key.status_code} with key, "
-                f"status {response_with_payload.status_code} with payload."
-            ),
-        )
-
-    @staticmethod
-    def _get_title_request_headers() -> dict[str, Any]:
-        """Get headers for the title request."""
-        ua = UserAgent()
-        headers = {"User-Agent": ua.random, "referer": HowLongToBeat.REFERER_HEADER}
-        return headers
-
-    @staticmethod
-    def _get_search_request_headers() -> dict[str, Any]:
-        ua = UserAgent()
+        Returns:
+            The session token string, or None if fetching failed.
+        """
         headers = {
-            "content-type": "application/json",
-            "accept": "*/*",
-            "User-Agent": ua.random.strip(),
-            "Referer": HowLongToBeat.REFERER_HEADER,
+            "Accept": "*/*",
+            "Referer": self.REFERER_HEADER,
+            "Sec-Fetch-Dest": "empty",
+            "Sec-Fetch-Mode": "cors",
+            "Sec-Fetch-Site": "same-origin",
+            "User-Agent": self._get_user_agent(),
         }
 
-        return headers
+        response = self._make_request(self.BASE_URL + "api/search/init", headers=headers)
 
-    @staticmethod
-    def _generate_data_payload(
-        game_name: str, page: int, search_info: SearchInformation | None = None
-    ) -> str:
-        """Generate data payload
+        if response and response.status_code == 200:
+            try:
+                data: dict[str, Any] = response.json()
+                token = data.get("token")
+                return cast(str, token) if token is not None else None
+            except (json.JSONDecodeError, KeyError) as e:
+                self.logger.log(
+                    f"HLTB token parsing failed: {e}",
+                    level="error",
+                    verbose=True,
+                )
+        else:
+            self.logger.log(
+                f"HLTB token request failed with status {response.status_code if response else 'no response'}",
+                level="error",
+                verbose=True,
+            )
+
+        return None
+
+    def _fetch_search_results(self, game_name: str, token: str) -> requests.Response | None:
+        """Send a search request to HowLongToBeat.
+
         Args:
-            game_name (str): The game name to fetch data for.
-            page: The page to search
-            search_info (SearchInformation): Search information containing API key and search URL of the HLTB.
+            game_name: The name of the game to search for.
+            token: The session token from init endpoint.
 
         Returns:
-            str: JSON string of the payload to be sent in the request.
-
+            The response object if successful, None otherwise.
         """
-        payload: dict[str, Any] = {
+        headers = {
+            "Content-Type": "application/json",
+            "Accept": "*/*",
+            "Referer": self.REFERER_HEADER,
+            "Sec-Fetch-Dest": "empty",
+            "Sec-Fetch-Mode": "cors",
+            "Sec-Fetch-Site": "same-origin",
+            "Origin": self.BASE_URL.rstrip("/"),
+            "x-auth-token": token,
+            "User-Agent": self._get_user_agent(),
+        }
+
+        # Use requests.post directly since _make_request only supports GET
+        try:
+            return requests.post(
+                self.BASE_URL + "api/search",
+                headers=headers,
+                data=json.dumps(self._generate_search_payload(game_name)),
+                timeout=60,
+            )
+        except Timeout as e:
+            self.logger.log(
+                f"HLTB search request timed out: {e}",
+                level="error",
+                verbose=True,
+            )
+            return None
+        except ConnectionError as e:
+            self.logger.log(
+                f"HLTB search connection error: {e}",
+                level="error",
+                verbose=True,
+            )
+            return None
+        except Exception as e:
+            self.logger.log(
+                f"HLTB search unexpected error: {type(e).__name__}: {e}",
+                level="error",
+                verbose=True,
+            )
+            return None
+
+    def _fetch_game_page(self, game_id: int) -> dict[str, Any] | None:
+        """Fetch full game data from the game page.
+
+        Args:
+            game_id: The HowLongToBeat game ID.
+
+        Returns:
+            The game data dict, or None if fetching failed.
+        """
+        # Use requests.get directly with proper headers to avoid 403
+        headers = {
+            "User-Agent": self._get_user_agent(),
+            "Referer": self.REFERER_HEADER,
+        }
+
+        try:
+            response = requests.get(f"{self.BASE_URL}game/{game_id}", headers=headers, timeout=60)
+        except (ConnectionError, Timeout):
+            return None
+
+        if response.status_code == 200:
+            # Extract __NEXT_DATA__ from the HTML
+            match = re.search(
+                r'<script id="__NEXT_DATA__".*?>(.*?)</script>',
+                response.text,
+                re.DOTALL,
+            )
+            if match:
+                try:
+                    next_data = json.loads(match.group(1))
+                    # Navigate the nested structure safely
+                    game_data = (
+                        next_data.get("props", {})
+                        .get("pageProps", {})
+                        .get("game", {})
+                        .get("data", {})
+                    )
+                    game_list = game_data.get("game")
+                    if isinstance(game_list, list) and len(game_list) > 0:
+                        return cast(dict[str, Any], game_list[0])
+                except (json.JSONDecodeError, KeyError, IndexError):
+                    pass
+
+        return None
+
+    @staticmethod
+    def _generate_search_payload(game_name: str) -> dict[str, Any]:
+        """Generate the search payload.
+
+        Args:
+            game_name: The game name to search for.
+
+        Returns:
+            The payload dict for the search request.
+        """
+        return {
             "searchType": "games",
             "searchTerms": game_name.split(),
-            "searchPage": page,
-            "size": 20,
+            "searchPage": 1,
+            "size": 1,
             "searchOptions": {
                 "games": {
                     "userId": 0,
@@ -315,7 +299,12 @@ class HowLongToBeat(BaseSource):
                     "sortCategory": "popular",
                     "rangeCategory": "main",
                     "rangeTime": {"min": 0, "max": 0},
-                    "gameplay": {"perspective": "", "flow": "", "genre": "", "difficulty": ""},
+                    "gameplay": {
+                        "perspective": "",
+                        "flow": "",
+                        "genre": "",
+                        "difficulty": "",
+                    },
                     "rangeYear": {"max": "", "min": ""},
                     "modifier": "",
                 },
@@ -328,10 +317,37 @@ class HowLongToBeat(BaseSource):
             "useCache": True,
         }
 
-        # If api_key is passed add it to the dict
-        if search_info and search_info.api_key:
-            search_options = cast(dict[str, Any], payload["searchOptions"])
-            users_options = cast(dict[str, Any], search_options["users"])
-            users_options["id"] = search_info.api_key
+    def _transform_data(self, data: dict[str, Any]) -> dict[str, Any]:
+        """Transform raw data into the expected format.
 
-        return json.dumps(payload)
+        The HLTB API returns time values in seconds. We convert them to minutes
+        for consistency with other sources. Also, we map the base time labels
+        to their '_avg' counterparts which represent the average completion time
+        as shown on the website.
+
+        Args:
+            data: The raw game data from HLTB.
+
+        Returns:
+            Dict with only the valid labels, with time values converted to minutes.
+        """
+        result: dict[str, Any] = {}
+        for label in self._valid_labels:
+            raw_value: Any = None
+
+            # Map time labels to their '_avg' counterparts (average completion time)
+            if label in ('comp_main', 'comp_plus', 'comp_100', 'comp_all'):
+                avg_label = f"{label}_avg"
+                raw_value = data.get(avg_label)
+            elif label in ('invested_co', 'invested_mp'):
+                avg_label = f"{label}_avg"
+                raw_value = data.get(avg_label)
+            else:
+                raw_value = data.get(label, None)
+
+            # Convert time fields from seconds to minutes
+            if raw_value is not None and label.startswith(('comp_', 'invested_')):
+                result[label] = cast(int, raw_value) // 60
+            else:
+                result[label] = raw_value
+        return result
