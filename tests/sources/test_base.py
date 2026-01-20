@@ -72,8 +72,9 @@ class TestBaseSource:
     def test_make_request_retries_on_exception_to_retry(
         self, mock_request_response, base_source_fixture, attempt, expected_result
     ):
+        # Mock the session's get method instead of requests.get
         mock_get = mock_request_response(
-            target_class=requests, method_name="get", side_effect=attempt
+            target_class=base_source_fixture.session, method_name="get", side_effect=attempt
         )
         result = base_source_fixture._make_request()
 
@@ -86,11 +87,130 @@ class TestBaseSource:
             requests.exceptions.Timeout("timeout 2"),
             requests.exceptions.Timeout("timeout 3"),
         ]
+        # Mock the session's get method instead of requests.get
         mock_get = mock_request_response(
-            target_class=requests, method_name="get", side_effect=attempt
+            target_class=base_source_fixture.session, method_name="get", side_effect=attempt
         )
         result = base_source_fixture._make_request()
 
         assert mock_get.call_count == 3
         assert result.status_code == base.SYNTHETIC_ERROR_CODE
         assert not result.ok
+
+
+class TestConnectionPooling:
+    """Tests for session connection pooling functionality."""
+
+    def setup_method(self):
+        """Reset session before each test."""
+        BaseSource.close_session()
+
+    def teardown_method(self):
+        """Clean up session after each test."""
+        BaseSource.close_session()
+
+    @pytest.fixture
+    def test_source_class(self):
+        """Create a test source class for testing."""
+
+        class _TestSource(BaseSource):
+            _valid_labels = ("test_label",)
+            _valid_labels_set = frozenset(_valid_labels)
+            _base_url = "https://api.testurl.com/"
+
+            def fetch(self, *args, **kwargs):
+                pass
+
+            def _transform_data(self, data):
+                pass
+
+        return _TestSource
+
+    def test_session_created_on_first_access(self, test_source_class):
+        """Test that a session is created when first accessed."""
+        # Ensure session is None initially
+        assert BaseSource._session is None
+
+        source = test_source_class()
+        session = source.session
+
+        assert session is not None
+        assert isinstance(session, requests.Session)
+
+    def test_session_reused_across_sources(self, test_source_class):
+        """Test that the same session is reused across different source instances."""
+        source1 = test_source_class()
+        source2 = test_source_class()
+
+        session1 = source1.session
+        session2 = source2.session
+
+        assert session1 is session2
+        assert id(session1) == id(session2)
+
+    def test_session_has_connection_pooling_configured(self, test_source_class):
+        """Test that the session is configured with connection pooling."""
+        source = test_source_class()
+        session = source.session
+
+        # Check that HTTPAdapter is mounted for both http and https
+        https_adapter = session.get_adapter("https://example.com")
+        http_adapter = session.get_adapter("http://example.com")
+
+        assert https_adapter is not None
+        assert http_adapter is not None
+
+        from requests.adapters import HTTPAdapter
+
+        assert isinstance(https_adapter, HTTPAdapter)
+        assert isinstance(http_adapter, HTTPAdapter)
+
+        # Verify pool configuration
+        assert https_adapter._pool_connections == 10
+        assert https_adapter._pool_maxsize == 20
+
+    def test_close_session_closes_and_resets_session(self, test_source_class):
+        """Test that close_session properly closes and resets the session."""
+        source = test_source_class()
+        session1 = source.session
+
+        # Close the session
+        BaseSource.close_session()
+
+        # Verify session is reset
+        assert BaseSource._session is None
+
+        # New source should create a new session
+        session2 = source.session
+        assert session1 is not session2
+
+    def test_collector_context_manager(self):
+        """Test that Collector works as a context manager."""
+        from gameinsights import Collector
+
+        # Ensure clean state
+        BaseSource.close_session()
+
+        with Collector() as collector:
+            assert collector is not None
+            # Session is created lazily when first accessed via a source
+            _ = collector.steamstore.session
+            assert BaseSource._session is not None
+
+        # Session should be closed after exiting context
+        assert BaseSource._session is None
+
+    def test_collector_close_method(self):
+        """Test that Collector.close() properly closes the session."""
+        from gameinsights import Collector
+
+        # Ensure clean state
+        BaseSource.close_session()
+
+        collector = Collector()
+        # Session is created lazily when first accessed via a source
+        _ = collector.steamstore.session
+        assert BaseSource._session is not None
+
+        collector.close()
+        assert BaseSource._session is None

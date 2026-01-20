@@ -21,6 +21,7 @@ class FetchResult:
         data: The fetched data (if successful)
         error: Error message (if failed)
     """
+
     identifier: str
     success: bool
     data: dict[str, Any] | None = None
@@ -312,9 +313,7 @@ class Collector:
                     level="error",
                     verbose=True,
                 )
-                all_results.append(
-                    FetchResult(identifier=str(appid), success=False, error=str(e))
-                )
+                all_results.append(FetchResult(identifier=str(appid), success=False, error=str(e)))
 
         if include_failures:
             return result, all_results
@@ -402,9 +401,7 @@ class Collector:
                     level="error",
                     verbose=True,
                 )
-                all_results.append(
-                    FetchResult(identifier=str(appid), success=False, error=str(e))
-                )
+                all_results.append(FetchResult(identifier=str(appid), success=False, error=str(e)))
             all_data.append(game_record)
 
         # sort the months chronologically
@@ -546,3 +543,30 @@ class Collector:
         )
 
         return result
+
+    def __enter__(self) -> "Collector":
+        """Enter the context manager.
+
+        Returns:
+            The Collector instance.
+        """
+        return self
+
+    def __exit__(self, *args: object) -> None:
+        """Exit the context manager and close the session.
+
+        Args:
+            *args: Exception info (unused).
+        """
+        self.close()
+
+    def close(self) -> None:
+        """Close the shared session and release resources.
+
+        This method should be called when done making requests to properly
+        close HTTP connections and release resources. When using the Collector
+        as a context manager, this is called automatically.
+        """
+        from gameinsights.sources.base import BaseSource
+
+        BaseSource.close_session()

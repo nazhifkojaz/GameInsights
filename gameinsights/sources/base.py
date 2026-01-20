@@ -5,6 +5,7 @@ from urllib.parse import urljoin
 
 import requests
 from fake_useragent import UserAgent
+from requests.adapters import HTTPAdapter
 from requests.exceptions import (
     ConnectionError,
     InvalidURL,
@@ -35,6 +36,7 @@ SYNTHETIC_ERROR_CODE = 599
 
 class BaseSource(ABC):
     _base_url: str | None = None
+    _session: requests.Session | None = None
 
     def __init__(self) -> None:
         """Initialize the base class for all its children."""
@@ -43,6 +45,35 @@ class BaseSource(ABC):
     @property
     def logger(self) -> "LoggerWrapper":
         return self._logger
+
+    @property
+    def session(self) -> requests.Session:
+        """Get or create a shared session with connection pooling.
+
+        The session is shared across all BaseSource instances to maximize
+        connection reuse. Connection pooling reduces TCP/TLS handshake
+        overhead for subsequent requests.
+        """
+        if BaseSource._session is None:
+            BaseSource._session = requests.Session()
+            adapter = HTTPAdapter(
+                pool_connections=10,  # Number of connection pools to cache
+                pool_maxsize=20,  # Maximum number of connections per pool
+            )
+            BaseSource._session.mount("https://", adapter)
+            BaseSource._session.mount("http://", adapter)
+        return BaseSource._session
+
+    @classmethod
+    def close_session(cls) -> None:
+        """Close the shared session and release resources.
+
+        This should be called when done making requests to properly
+        close connections and release resources.
+        """
+        if cls._session is not None:
+            cls._session.close()
+            cls._session = None
 
     @property
     @abstractmethod
@@ -120,7 +151,7 @@ class BaseSource(ABC):
 
         for attempts in range(1, retries + 2):
             try:
-                return requests.get(final_url, headers=headers, params=params, timeout=timeout)
+                return self.session.get(final_url, headers=headers, params=params, timeout=timeout)
             except exception_to_retry as e:
                 if attempts < retries:
                     sleep_duration = backoff_factor * (2 ** (attempts - 1))  # the cooldown period
