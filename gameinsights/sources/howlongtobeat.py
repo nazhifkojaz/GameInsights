@@ -19,10 +19,8 @@ import re
 from typing import Any, cast
 
 import requests
-from fake_useragent import UserAgent
-from requests.exceptions import ConnectionError, Timeout
 
-from gameinsights.sources.base import BaseSource, SourceResult, SuccessResult
+from gameinsights.sources.base import SYNTHETIC_ERROR_CODE, BaseSource, SourceResult, SuccessResult
 from gameinsights.utils.ratelimit import logged_rate_limited
 
 _HOWLONGTOBEAT_LABELS = (
@@ -135,14 +133,6 @@ class HowLongToBeat(BaseSource):
 
         return SuccessResult(success=True, data=data_packed)
 
-    def _get_user_agent(self) -> str:
-        """Get a random user agent string.
-
-        Returns:
-            A random user agent string.
-        """
-        return UserAgent().random
-
     def _get_search_token(self) -> str | None:
         """Fetch a search token from the init endpoint.
 
@@ -155,7 +145,6 @@ class HowLongToBeat(BaseSource):
             "Sec-Fetch-Dest": "empty",
             "Sec-Fetch-Mode": "cors",
             "Sec-Fetch-Site": "same-origin",
-            "User-Agent": self._get_user_agent(),
         }
 
         response = self._make_request(self.BASE_URL + "api/search/init", headers=headers)
@@ -199,38 +188,19 @@ class HowLongToBeat(BaseSource):
             "Sec-Fetch-Site": "same-origin",
             "Origin": self.BASE_URL.rstrip("/"),
             "x-auth-token": token,
-            "User-Agent": self._get_user_agent(),
         }
 
-        # Use requests.post directly since _make_request only supports GET
-        try:
-            return requests.post(
-                self.BASE_URL + "api/search",
-                headers=headers,
-                data=json.dumps(self._generate_search_payload(game_name)),
-                timeout=60,
-            )
-        except Timeout as e:
-            self.logger.log(
-                f"HLTB search request timed out: {e}",
-                level="error",
-                verbose=True,
-            )
+        response = self._make_request(
+            url=self.BASE_URL + "api/search",
+            method="POST",
+            headers=headers,
+            json=self._generate_search_payload(game_name),
+        )
+
+        # Return None on synthetic errors (connection/timeout failures)
+        if response.status_code == SYNTHETIC_ERROR_CODE:
             return None
-        except ConnectionError as e:
-            self.logger.log(
-                f"HLTB search connection error: {e}",
-                level="error",
-                verbose=True,
-            )
-            return None
-        except Exception as e:
-            self.logger.log(
-                f"HLTB search unexpected error: {type(e).__name__}: {e}",
-                level="error",
-                verbose=True,
-            )
-            return None
+        return response
 
     def _fetch_game_page(self, game_id: int) -> dict[str, Any] | None:
         """Fetch full game data from the game page.
@@ -241,39 +211,37 @@ class HowLongToBeat(BaseSource):
         Returns:
             The game data dict, or None if fetching failed.
         """
-        # Use requests.get directly with proper headers to avoid 403
         headers = {
-            "User-Agent": self._get_user_agent(),
             "Referer": self.REFERER_HEADER,
         }
 
-        try:
-            response = requests.get(f"{self.BASE_URL}game/{game_id}", headers=headers, timeout=60)
-        except (ConnectionError, Timeout):
+        response = self._make_request(url=f"{self.BASE_URL}game/{game_id}", headers=headers)
+
+        # Return None on synthetic errors or non-200 responses
+        if response.status_code != 200:
             return None
 
-        if response.status_code == 200:
-            # Extract __NEXT_DATA__ from the HTML
-            match = re.search(
-                r'<script id="__NEXT_DATA__".*?>(.*?)</script>',
-                response.text,
-                re.DOTALL,
-            )
-            if match:
-                try:
-                    next_data = json.loads(match.group(1))
-                    # Navigate the nested structure safely
-                    game_data = (
-                        next_data.get("props", {})
-                        .get("pageProps", {})
-                        .get("game", {})
-                        .get("data", {})
-                    )
-                    game_list = game_data.get("game")
-                    if isinstance(game_list, list) and len(game_list) > 0:
-                        return cast(dict[str, Any], game_list[0])
-                except (json.JSONDecodeError, KeyError, IndexError):
-                    pass
+        # Extract __NEXT_DATA__ from the HTML
+        match = re.search(
+            r'<script id="__NEXT_DATA__".*?>(.*?)</script>',
+            response.text,
+            re.DOTALL,
+        )
+        if match:
+            try:
+                next_data = json.loads(match.group(1))
+                # Navigate the nested structure safely
+                game_data = (
+                    next_data.get("props", {})
+                    .get("pageProps", {})
+                    .get("game", {})
+                    .get("data", {})
+                )
+                game_list = game_data.get("game")
+                if isinstance(game_list, list) and len(game_list) > 0:
+                    return cast(dict[str, Any], game_list[0])
+            except (json.JSONDecodeError, KeyError, IndexError):
+                pass
 
         return None
 
