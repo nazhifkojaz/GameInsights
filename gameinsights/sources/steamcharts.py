@@ -79,11 +79,8 @@ class SteamCharts(BaseSource):
             return self._build_error_result(
                 "Failed to parse data, expecting atleast 3 'app-stat' divs.", verbose=verbose
             )
-        for stat in peak_data:
-            if stat.find("span", class_="num") is None:
-                return self._build_error_result(
-                    "Failed to parse data, incorrect app-stat structure.", verbose=verbose
-                )
+        # Note: Missing span elements are handled gracefully by _safe_span_text()
+        # which returns None instead of raising AttributeError
 
         active_player_data_table = soup.find("table", class_="common-table")
         if not isinstance(active_player_data_table, Tag):
@@ -123,10 +120,27 @@ class SteamCharts(BaseSource):
 
         return SuccessResult(success=True, data=data_packed)
 
+    @staticmethod
+    def _safe_span_text(element: Tag | None) -> str | None:
+        """Safely extract text from a span element.
+
+        Args:
+            element: A BeautifulSoup Tag element that may contain a span.
+
+        Returns:
+            The span's text content, or None if element/span is missing.
+        """
+        if element is None:
+            return None
+        span = element.span
+        if span is None:
+            return None
+        return span.get_text()
+
     def _transform_data(self, data: dict[str, Any]) -> dict[str, Any]:
         game_name_text = data["game_name"].get_text()
-        active_24h = data["peak_data"][1].span.get_text()
-        peak_active = data["peak_data"][2].span.get_text()
+        active_24h = self._safe_span_text(data["peak_data"][1])
+        peak_active = self._safe_span_text(data["peak_data"][2])
 
         monthly_active_player = []
         for row in data.get("player_data_rows", []):

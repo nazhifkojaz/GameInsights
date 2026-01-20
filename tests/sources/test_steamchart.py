@@ -64,10 +64,6 @@ class TestSteamCharts:
                 "Failed to parse data, expecting atleast 3 'app-stat' divs.",
             ),
             (
-                "steamcharts_error_response_incorrect_appstat_structure",
-                "Failed to parse data, incorrect app-stat structure.",
-            ),
-            (
                 "steamcharts_error_response_no_player_data_table",
                 "Failed to parse data, active player data table is not found.",
             ),
@@ -79,7 +75,6 @@ class TestSteamCharts:
         ids=[
             "no_app_title",
             "incorrect_appstat_count",
-            "incorrect_appstat_structure",
             "no_player_data_table",
             "incorrect_player_data_table_structure",
         ],
@@ -138,3 +133,23 @@ class TestSteamCharts:
         assert len(monthly_data) == 2
         assert monthly_data[0]["month"] == "2025-01"
         assert monthly_data[1]["month"] == "2025-03"
+
+    def test_fetch_missing_span_returns_none(
+        self,
+        source_fetcher,
+        steamcharts_missing_span_response_data,
+    ):
+        """Test that missing span elements are handled gracefully."""
+        result = source_fetcher(
+            SteamCharts,
+            mock_kwargs={"text_data": steamcharts_missing_span_response_data},
+            call_kwargs={"steam_appid": "12345"},
+        )
+
+        # Should succeed but with None values for missing data
+        assert result["success"] is True
+        assert result["data"]["steam_appid"] == "12345"
+        assert result["data"]["name"] == "Test Game"
+        # Missing span should result in None values
+        assert result["data"]["active_player_24h"] is None
+        assert result["data"]["peak_active_player_all_time"] is None

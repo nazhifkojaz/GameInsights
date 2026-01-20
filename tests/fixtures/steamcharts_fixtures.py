@@ -250,3 +250,23 @@ def steamcharts_malformed_row_response_data():
     </html>
     """
     return data
+
+
+@pytest.fixture
+def steamcharts_missing_span_response_data():
+    """HTML response where app-stat divs are missing span elements."""
+    data = """
+    <!DOCTYPE html>
+    <html>
+    <body>
+        <h1 id="app-title">Test Game</h1>
+        <div class="app-stat">No span here</div>
+        <div class="app-stat">No span here</div>
+        <div class="app-stat">No span here</div>
+        <table class="common-table">
+            <tr><th>Last 30 Days</th><th></th><th></th><th></th><th></th></tr>
+        </table>
+    </body>
+    </html>
+    """
+    return data
