@@ -14,12 +14,13 @@ class TestGamalytic:
         assert result["success"] is True
         assert result["data"]["steam_appid"] == "12345"
         assert result["data"]["name"] == "Mock Game: The Adventure"
+        assert result["data"]["followers"] == 1234
+        assert result["data"]["early_access"] is False
 
         # should be none because in the mock data, I didn't provide the developers
         assert result["data"]["developers"] is None
 
-        # should be 22 labels because I only take 24 out of all data they provided
-        # and leave 2 commented
+        # All 22 Gamalytic labels are returned (followers and early_access were already in _GAMALYTICS_LABELS)
         assert len(result["data"]) == 22
 
     def test_fetch_success_numeric_appid(self, source_fetcher, gamalytic_success_response_data):
@@ -32,13 +33,18 @@ class TestGamalytic:
         assert result["success"] is True
         assert result["data"]["steam_appid"] == "12345"
         assert result["data"]["name"] == "Mock Game: The Adventure"
+        assert result["data"]["followers"] == 1234
+        assert result["data"]["early_access"] is False
         assert result["data"]["developers"] is None
+        # All 22 Gamalytic labels are returned
         assert len(result["data"]) == 22
 
     @pytest.mark.parametrize(
         "selected_labels, expected_labels, expected_len",
         [
             (["name"], ["name"], 1),
+            (["name", "followers"], ["name", "followers"], 2),
+            (["early_access"], ["early_access"], 1),
             (["name", "invalid_label"], ["name"], 1),
             (["invalid_label"], [], 0),
         ],

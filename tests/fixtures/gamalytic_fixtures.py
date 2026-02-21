@@ -14,4 +14,5 @@ def gamalytic_success_response_data():
         "reviewsSteam": 1234,
         "followers": 1234,
         "avgPlaytime": 12.34,
+        "earlyAccess": False,
     }
