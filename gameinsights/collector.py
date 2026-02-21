@@ -81,6 +81,9 @@ class Collector:
         self.steamachievements = sources.SteamAchievements(api_key=self.steam_api_key)
         self.steamuser = sources.SteamUser(api_key=self.steam_api_key)
 
+        # New sources
+        self.protondb = sources.ProtonDB()
+
     def _init_sources_config(self) -> None:
         """Initialize sources config."""
         self._id_based_sources = [
@@ -108,7 +111,15 @@ class Collector:
             ),
             SourceConfig(
                 self.gamalytic,
-                ["average_playtime_h", "copies_sold", "estimated_revenue", "owners", "languages"],
+                [
+                    "average_playtime_h",
+                    "copies_sold",
+                    "estimated_revenue",
+                    "owners",
+                    "languages",
+                    "followers",
+                    "early_access",
+                ],
             ),
             SourceConfig(self.steamspy, ["ccu", "tags", "discount"]),
             SourceConfig(
@@ -131,6 +142,16 @@ class Collector:
                     "achievements_count",
                     "achievements_percentage_average",
                     "achievements_list",
+                ],
+            ),
+            SourceConfig(
+                self.protondb,
+                [
+                    "protondb_tier",
+                    "protondb_score",
+                    "protondb_trending",
+                    "protondb_confidence",
+                    "protondb_total",
                 ],
             ),
         ]

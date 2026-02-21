@@ -32,6 +32,10 @@ class GameDataModel(BaseModel):
     estimated_revenue: int | None = Field(default=None, description="in USD")
     # total_revenue: float = Field(default=float("nan"))
     owners: int | None = Field(default=None)
+    followers: int | None = Field(
+        default=None, description="Steam wishlist/follower count from Gamalytic"
+    )
+    early_access: bool | None = Field(default=None, description="Whether game is in early access")
     ccu: int | None = Field(default=None)
     active_player_24h: int | None = Field(default=None)
     peak_active_player_all_time: int | None = Field(default=None)
@@ -69,13 +73,26 @@ class GameDataModel(BaseModel):
     tags: list[str] = Field(default_factory=list)
     content_rating: list[dict[str, Any]] = Field(default_factory=list)
 
+    # ProtonDB fields (Linux/Steam Deck compatibility)
+    protondb_tier: str | None = Field(default=None)
+    protondb_score: float | None = Field(default=None)
+    protondb_trending: str | None = Field(default=None)
+    protondb_confidence: str | None = Field(default=None)
+    protondb_total: int | None = Field(default=None)
+
     @field_validator("release_date", mode="before")
     def parse_release_date(cls, v: str | int | float | datetime | None) -> datetime | None:
-        """Parse dates in format '%b %d, %Y' (e.g. 'Jun 15, 2023')"""
+        """Parse dates in format '%b %d, %Y' (e.g. 'Jun 15, 2023') or ISO 8601 '%Y-%m-%d'"""
         if v is None or isinstance(v, datetime):
             return v
         try:
             if isinstance(v, str):
+                # Try ISO 8601 format first (YYYY-MM-DD)
+                try:
+                    return datetime.strptime(v, "%Y-%m-%d")
+                except ValueError:
+                    pass
+                # Try Steam format (MMM DD, YYYY)
                 return datetime.strptime(v, "%b %d, %Y")
             elif isinstance(v, (int, float)):
                 return datetime.fromtimestamp(v)
@@ -88,6 +105,7 @@ class GameDataModel(BaseModel):
         "estimated_revenue",
         # "total_revenue",
         "owners",
+        "followers",
         "ccu",
         "active_player_24h",
         "peak_active_player_all_time",
@@ -115,6 +133,7 @@ class GameDataModel(BaseModel):
         "count_playing",
         "count_retired",
         "recommendations",
+        "protondb_total",
         mode="before",
     )
     def handle_integers(cls, v: str | int | float | None) -> int | None:
@@ -132,6 +151,7 @@ class GameDataModel(BaseModel):
         "average_playtime_h",
         "achievements_percentage_average",
         "discount",
+        "protondb_score",
         mode="before",
     )
     def handle_float(cls, v: str | int | float | None) -> float:
@@ -143,7 +163,15 @@ class GameDataModel(BaseModel):
         except (ValueError, TypeError):
             return float("nan")
 
-    @field_validator("steam_appid", "name", "type", mode="before")
+    @field_validator(
+        "steam_appid",
+        "name",
+        "type",
+        "protondb_tier",
+        "protondb_trending",
+        "protondb_confidence",
+        mode="before",
+    )
     def ensure_string(cls, v: str | None) -> str:
         """convert x types to string"""
         return "" if v is None else str(v)
@@ -203,6 +231,7 @@ class GameDataModel(BaseModel):
         "copies_sold",
         "estimated_revenue",
         "owners",
+        "followers",
         "total_positive",
         "total_negative",
         "total_reviews",

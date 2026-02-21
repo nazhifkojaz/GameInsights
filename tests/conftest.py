@@ -10,6 +10,7 @@ import requests
 from tests.fixtures.gamalytic_fixtures import *  # noqa: F403
 from tests.fixtures.hltb_fixtures import *  # noqa: F403
 from tests.fixtures.model_fixtures import *  # noqa: F403
+from tests.fixtures.protondb_fixtures import *  # noqa: F403
 from tests.fixtures.steamachievements_fixtures import *  # noqa: F403
 from tests.fixtures.steamcharts_fixtures import *  # noqa: F403
 from tests.fixtures.steamreview_fixtures import *  # noqa: F403
@@ -154,6 +155,7 @@ def collector_with_mocks(mock_request_response, monkeypatch, request):
     from gameinsights.sources import (
         Gamalytic,
         HowLongToBeat,
+        ProtonDB,
         SteamAchievements,
         SteamCharts,
         SteamReview,
@@ -179,6 +181,14 @@ def collector_with_mocks(mock_request_response, monkeypatch, request):
         (
             HowLongToBeat,
             {"mock_kwargs": {"text_data": request.getfixturevalue("hltb_success_response_data")}},
+        ),
+        (
+            ProtonDB,
+            {
+                "mock_kwargs": {
+                    "json_data": request.getfixturevalue("protondb_success_response_data")
+                }
+            },
         ),
         (
             SteamAchievements,
