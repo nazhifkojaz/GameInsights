@@ -19,6 +19,10 @@ def raw_data_normal():
         "is_coming_soon": False,
         "recommendations": 1000,
         "discount": 25.5,
+        # Recap fields added for testing
+        "protondb_tier": "platinum",
+        "early_access": False,
+        "metacritic_score": 85,
     }
 
 

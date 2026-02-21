@@ -30,6 +30,7 @@ class GameDataModel(BaseModel):
     average_playtime: int | None = Field(default=None)
     copies_sold: int | None = Field(default=None)
     estimated_revenue: int | None = Field(default=None, description="in USD")
+    # TODO: Implement total_revenue field - currently disabled pending data source verification
     # total_revenue: float = Field(default=float("nan"))
     owners: int | None = Field(default=None)
     followers: int | None = Field(
@@ -103,6 +104,7 @@ class GameDataModel(BaseModel):
         "metacritic_score",
         "copies_sold",
         "estimated_revenue",
+        # TODO: Re-enable when total_revenue field is implemented
         # "total_revenue",
         "owners",
         "followers",
@@ -250,4 +252,10 @@ class GameDataModel(BaseModel):
         "genres",
         "tags",
         "is_free",
+        # Linux/Steam Deck compatibility
+        "protondb_tier",
+        # Game state flags
+        "early_access",
+        # Review scores
+        "metacritic_score",
     }

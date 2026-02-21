@@ -120,6 +120,10 @@ class TestGameDataModel:
             "average_playtime": 1234 * 3600,
             "total_reviews": None,
             "is_free": True,
+            # New recap fields
+            "protondb_tier": "platinum",
+            "early_access": False,
+            "metacritic_score": 85,
         }
 
         for field, expected in expectations.items():
