@@ -163,10 +163,17 @@ class BaseSource(ABC):
         for attempts in range(1, retries + 2):
             try:
                 if method == "GET":
-                    return self.session.get(final_url, headers=headers, params=params, timeout=timeout)
+                    return self.session.get(
+                        final_url, headers=headers, params=params, timeout=timeout
+                    )
                 else:  # POST
                     return self.session.post(
-                        final_url, headers=headers, params=params, json=json, data=data, timeout=timeout
+                        final_url,
+                        headers=headers,
+                        params=params,
+                        json=json,
+                        data=data,
+                        timeout=timeout,
                     )
             except exception_to_retry as e:
                 if attempts < retries:

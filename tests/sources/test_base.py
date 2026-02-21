@@ -118,7 +118,9 @@ class TestBaseSource:
         assert "json" in call_kwargs
         assert call_kwargs["json"] == {"test": "data"}
 
-    def test_make_request_post_retries_on_exception(self, mock_request_response, base_source_fixture):
+    def test_make_request_post_retries_on_exception(
+        self, mock_request_response, base_source_fixture
+    ):
         """Test that POST requests retry on connection errors."""
         attempt = [
             requests.exceptions.ConnectionError("fail 1"),
@@ -129,9 +131,7 @@ class TestBaseSource:
             target_class=base_source_fixture.session, method_name="post", side_effect=attempt
         )
 
-        result = base_source_fixture._make_request(
-            method="POST", json={"test": "data"}
-        )
+        result = base_source_fixture._make_request(method="POST", json={"test": "data"})
 
         assert result.status_code == 200
         assert mock_post.call_count == 2
@@ -154,7 +154,9 @@ class TestBaseSource:
         assert result.status_code == base.SYNTHETIC_ERROR_CODE
         assert not result.ok
 
-    def test_make_request_post_with_data_parameter(self, mock_request_response, base_source_fixture):
+    def test_make_request_post_with_data_parameter(
+        self, mock_request_response, base_source_fixture
+    ):
         """Test that POST requests work with raw data parameter."""
         # Mock the session's post method
         mock_post = mock_request_response(

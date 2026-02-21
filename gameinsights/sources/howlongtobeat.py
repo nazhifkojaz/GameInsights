@@ -147,7 +147,7 @@ class HowLongToBeat(BaseSource):
             "Sec-Fetch-Site": "same-origin",
         }
 
-        response = self._make_request(self.BASE_URL + "api/search/init", headers=headers)
+        response = self._make_request(self.BASE_URL + "api/finder/init", headers=headers)
 
         if response and response.status_code == 200:
             try:
@@ -191,7 +191,7 @@ class HowLongToBeat(BaseSource):
         }
 
         response = self._make_request(
-            url=self.BASE_URL + "api/search",
+            url=self.BASE_URL + "api/finder",
             method="POST",
             headers=headers,
             json=self._generate_search_payload(game_name),
@@ -232,10 +232,7 @@ class HowLongToBeat(BaseSource):
                 next_data = json.loads(match.group(1))
                 # Navigate the nested structure safely
                 game_data = (
-                    next_data.get("props", {})
-                    .get("pageProps", {})
-                    .get("game", {})
-                    .get("data", {})
+                    next_data.get("props", {}).get("pageProps", {}).get("game", {}).get("data", {})
                 )
                 game_list = game_data.get("game")
                 if isinstance(game_list, list) and len(game_list) > 0:
