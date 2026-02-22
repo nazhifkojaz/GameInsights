@@ -7,8 +7,8 @@
 # Please respect their service and consider using official APIs if available.
 #
 # API Strategy:
-# 1. GET /api/search/init - Obtain session token
-# 2. POST /api/search with x-auth-token header - Search for games
+# 1. GET /api/finder/init - Obtain session token
+# 2. POST /api/finder with x-auth-token header - Search for games
 # 3. GET /game/{id} and parse __NEXT_DATA__ - Get full data
 #
 # Data Attribution: Completion times are sourced from howlongtobeat.com
