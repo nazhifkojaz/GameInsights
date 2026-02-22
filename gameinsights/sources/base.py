@@ -324,5 +324,9 @@ class BaseSource(ABC):
             Filtered data dictionary
         """
         if selected_labels:
-            return {label: data[label] for label in self._filter_valid_labels(selected_labels)}
+            return {
+                label: data[label]
+                for label in self._filter_valid_labels(selected_labels)
+                if label in data
+            }
         return data

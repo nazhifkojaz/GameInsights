@@ -109,7 +109,11 @@ class HowLongToBeat(BaseSource):
             return self._build_error_result("Game is not found.", verbose=verbose)
 
         # Step 3: Get the first search result and fetch full data
-        first_result = search_result["data"][0]
+        search_data = search_result.get("data")
+        if not isinstance(search_data, list) or len(search_data) == 0:
+            return self._build_error_result("No search data returned.", verbose=verbose)
+
+        first_result = search_data[0]
         game_id = first_result.get("game_id")
 
         if not game_id:

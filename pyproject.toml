@@ -19,6 +19,7 @@ fake-useragent = "^2.2.0"
 ratelimit = "^2.2.1"
 rapidfuzz = "^3.13.0"
 pydantic = "^2.11.7"
+pandas = {version = "^2.2", optional = true}
 
 [tool.poetry.extras]
 dataframe = ["pandas"]

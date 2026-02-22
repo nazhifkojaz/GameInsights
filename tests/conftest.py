@@ -1,5 +1,6 @@
 """Shared test fixtures and imports for all test modules."""
 
+import json
 from unittest.mock import Mock
 
 import pytest
@@ -43,6 +44,10 @@ def mock_request_response(monkeypatch):
 
             def json(self):
                 if self._json_raises:
+                    if isinstance(self._json_raises, Exception):
+                        raise self._json_raises
+                    if issubclass(self._json_raises, json.JSONDecodeError):
+                        raise self._json_raises("Invalid JSON", "", 0)
                     raise self._json_raises("Invalid JSON")
                 return self._json
 
