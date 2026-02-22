@@ -30,16 +30,20 @@ def mock_request_response(monkeypatch):
         json_data: dict | None = None,
         text_data: str | None = None,
         side_effect: list | None = None,
+        json_raises: type[Exception] | None = None,
     ):
         class Response:
-            def __init__(self, status_code, json_data, text_data):
+            def __init__(self, status_code, json_data, text_data, json_raises):
                 self.status_code = status_code
                 self.ok = 200 <= status_code < 300
                 self._json = json_data
                 self._text = text_data or ""
                 self.reason = "Mock Reason"
+                self._json_raises = json_raises
 
             def json(self):
+                if self._json_raises:
+                    raise self._json_raises("Invalid JSON")
                 return self._json
 
             @property
@@ -51,7 +55,12 @@ def mock_request_response(monkeypatch):
                     raise requests.HTTPError(f"Mock error {self.status_code}")
 
         def make_response_from_dict(d):
-            return Response(d.get("status_code", 200), d.get("json_data"), d.get("text_data"))
+            return Response(
+                d.get("status_code", 200),
+                d.get("json_data"),
+                d.get("text_data"),
+                d.get("json_raises"),
+            )
 
         if side_effect:
             # now it takes either exception or dict
@@ -60,7 +69,9 @@ def mock_request_response(monkeypatch):
             ]
             mock_method = Mock(side_effect=responses)
         else:
-            mock_method = Mock(return_value=Response(status_code, json_data, text_data))
+            mock_method = Mock(
+                return_value=Response(status_code, json_data, text_data, json_raises)
+            )
 
         target_method_names: list[str] = []
         if method_name is not None:
@@ -205,6 +216,94 @@ def collector_with_mocks(mock_request_response, monkeypatch, request):
                     "text_data": request.getfixturevalue("steamcharts_success_response_data")
                 }
             },
+        ),
+        (
+            SteamReview,
+            {"mock_kwargs": {"json_data": request.getfixturevalue("review_only_tchinese")}},
+        ),
+        (
+            SteamSpy,
+            {
+                "mock_kwargs": {
+                    "json_data": request.getfixturevalue("steamspy_success_response_data")
+                }
+            },
+        ),
+        (
+            SteamStore,
+            {
+                "mock_kwargs": {
+                    "json_data": request.getfixturevalue("steamstore_success_response_data")
+                }
+            },
+        ),
+    ]
+
+    for source_cls, kwargs in sources_payloads:
+        mock_request_response(target_class=source_cls, **kwargs["mock_kwargs"])
+
+    return Collector()
+
+
+@pytest.fixture
+def collector_with_one_failed_source(mock_request_response, monkeypatch, request):
+    """Collector with one mocked source failing to test resilience.
+
+    This fixture mocks all sources to succeed except SteamCharts, which returns
+    a 500 error. This allows testing that the collector continues collecting data
+    from successful sources even when one fails.
+    """
+    from gameinsights.collector import Collector
+    from gameinsights.sources import (
+        Gamalytic,
+        HowLongToBeat,
+        ProtonDB,
+        SteamAchievements,
+        SteamCharts,
+        SteamReview,
+        SteamSpy,
+        SteamStore,
+    )
+
+    # Mock the HowLongToBeat token method
+    def mock_get_token(*args, **kwargs):
+        return "mock_token"
+
+    monkeypatch.setattr(HowLongToBeat, "_get_search_token", mock_get_token)
+
+    sources_payloads = [
+        (
+            Gamalytic,
+            {
+                "mock_kwargs": {
+                    "json_data": request.getfixturevalue("gamalytic_success_response_data")
+                }
+            },
+        ),
+        (
+            HowLongToBeat,
+            {"mock_kwargs": {"text_data": request.getfixturevalue("hltb_success_response_data")}},
+        ),
+        (
+            ProtonDB,
+            {
+                "mock_kwargs": {
+                    "json_data": request.getfixturevalue("protondb_success_response_data")
+                }
+            },
+        ),
+        (
+            SteamAchievements,
+            {
+                "mock_kwargs": {
+                    "json_data": request.getfixturevalue("achievements_success_response_data")
+                }
+            },
+        ),
+        # SteamCharts FAILS with 500 error
+        (
+            SteamCharts,
+            {"mock_kwargs": {"status_code": 500, "text_data": "Internal Server Error"}},
         ),
         (
             SteamReview,

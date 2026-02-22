@@ -125,3 +125,26 @@ class TestCollector:
         # Should return DataFrame, not tuple
         assert isinstance(df, pd.DataFrame)
         assert not isinstance(df, tuple)
+
+    def test_partial_source_failure_continues_collection(self, collector_with_one_failed_source):
+        """Test that collector continues when one source fails.
+
+        Verifies that:
+        1. Game data is still returned even when one source fails
+        2. Data from successful sources is included
+        3. Data from the failed source is excluded
+        """
+        # _fetch_raw_data should still return a GameDataModel
+        game_data = collector_with_one_failed_source._fetch_raw_data(steam_appid="12345")
+
+        assert isinstance(game_data, GameDataModel)
+        assert game_data.steam_appid == "12345"
+
+        # Fields from successful sources should be present
+        assert game_data.name is not None  # From SteamStore
+        assert game_data.protondb_tier is not None  # From ProtonDB
+        assert game_data.developers is not None  # From Gamalytic
+
+        # Fields from failed SteamCharts source should be None/default
+        # ccu is from SteamCharts, so it should be None when SteamCharts fails
+        assert game_data.ccu is None

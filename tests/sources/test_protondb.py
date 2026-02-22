@@ -124,3 +124,58 @@ class TestProtonDB:
         assert result["data"]["protondb_score"] == 0.0
         assert result["data"]["protondb_confidence"] == "inadequate"
         assert result["data"]["protondb_total"] == 0
+
+    def test_fetch_server_error(
+        self,
+        source_fetcher,
+        protondb_server_error_response_data,
+    ):
+        """Test fetch when ProtonDB returns 500 Internal Server Error."""
+        result = source_fetcher(
+            ProtonDB,
+            status_code=500,
+            mock_kwargs={"text_data": protondb_server_error_response_data},
+            call_kwargs={"steam_appid": "570"},
+        )
+
+        assert result["success"] is False
+        assert "error" in result
+        assert "status code" in result["error"].lower()
+
+    def test_fetch_malformed_json(
+        self,
+        source_fetcher,
+        protondb_malformed_json_response_data,
+    ):
+        """Test fetch when response contains invalid JSON."""
+        import json
+
+        result = source_fetcher(
+            ProtonDB,
+            mock_kwargs={"json_raises": json.JSONDecodeError},
+            call_kwargs={"steam_appid": "570"},
+        )
+
+        assert result["success"] is False
+        assert "error" in result
+        assert "parse" in result["error"].lower()
+
+    def test_fetch_partial_data(
+        self,
+        source_fetcher,
+        protondb_partial_response_data,
+    ):
+        """Test fetch when API returns partial data (missing optional fields)."""
+        result = source_fetcher(
+            ProtonDB,
+            mock_kwargs={"json_data": protondb_partial_response_data},
+            call_kwargs={"steam_appid": "570"},
+        )
+
+        assert result["success"] is True
+        # Missing fields should be None
+        assert result["data"]["protondb_score"] is None
+        assert result["data"]["protondb_trending"] is None
+        # Present fields should have values
+        assert result["data"]["protondb_confidence"] == "inadequate"
+        assert result["data"]["protondb_total"] == 0
