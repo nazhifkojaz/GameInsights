@@ -12,3 +12,5 @@ poetry.lock
 
 # VSCode
 .vscode/
+
+.env

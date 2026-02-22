@@ -1,4 +1,5 @@
 """Tests for CLI pandas optional dependency."""
+
 import builtins
 import csv
 import io
@@ -39,9 +40,7 @@ class TestCLIPandasOptional:
         assert rows[0]["steam_appid"] == "12345"
         assert rows[0]["name"] == "Test Game"
 
-    def test_csv_output_with_multiple_records_works_without_pandas(
-        self, capsys, monkeypatch
-    ):
+    def test_csv_output_with_multiple_records_works_without_pandas(self, capsys, monkeypatch):
         """Test that CSV output works without pandas with multiple records."""
         original_import = builtins.__import__
 

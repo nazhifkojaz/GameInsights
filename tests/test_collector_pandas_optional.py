@@ -1,4 +1,5 @@
 """Tests for optional pandas dependency."""
+
 import builtins
 from unittest.mock import patch
 
@@ -76,9 +77,7 @@ class TestPandasOptional:
 
             assert "pandas is required for DataFrame operations" in str(exc_info.value)
 
-    def test_get_game_review_raises_import_error_without_pandas(
-        self, collector_with_mocks
-    ):
+    def test_get_game_review_raises_import_error_without_pandas(self, collector_with_mocks):
         """Test that get_game_review raises clear error without pandas."""
         original_import = builtins.__import__
 
