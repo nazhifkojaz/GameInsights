@@ -1,4 +1,4 @@
-# Steam Game Data Collector
+# GameInsights
 
 A unified tool for collecting Steam game data from multiple sources. Fetch steam game data based on its `steam_appid` from Steam Store, Steam Charts, Steam Reviews, Steam Spy, Gamalytic, HowLongToBeat, and Steam Web API.
 
@@ -43,25 +43,25 @@ A unified tool for collecting Steam game data from multiple sources. Fetch steam
 **From GitHub (recommended)**:
 ```bash
 # Basic installation (no pandas - for API/bot usage)
-pip install "git+https://github.com/nazhifkojaz/steam-game-data-collector.git"
+pip install "git+https://github.com/nazhifkojaz/gameinsights.git"
 
 # With DataFrame support (includes pandas)
-pip install "git+https://github.com/nazhifkojaz/steam-game-data-collector.git#egg=gameinsights[dataframe]"
+pip install "git+https://github.com/nazhifkojaz/gameinsights.git#egg=gameinsights[dataframe]"
 ```
 
 **Using Poetry**:
 ```bash
 # Basic installation
-poetry add git+https://github.com/nazhifkojaz/steam-game-data-collector.git
+poetry add git+https://github.com/nazhifkojaz/gameinsights.git
 
 # With DataFrame support
-poetry add git+https://github.com/nazhifkojaz/steam-game-data-collector.git --extras dataframe
+poetry add git+https://github.com/nazhifkojaz/gameinsights.git --extras dataframe
 ```
 
 **For development**:
 ```bash
-git clone https://github.com/nazhifkojaz/steam-game-data-collector.git
-cd steam-game-data-collector
+git clone https://github.com/nazhifkojaz/gameinsights.git
+cd gameinsights
 poetry install
 # Optional: for development extras
 poetry install --with dev

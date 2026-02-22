@@ -1,4 +1,5 @@
 """Optional dependency lazy-import helpers."""
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
@@ -22,6 +23,7 @@ def import_pandas() -> Any:
     """
     try:
         import pandas as pd_module
+
         return pd_module
     except ImportError:
         raise ImportError(

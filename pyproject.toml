@@ -6,8 +6,8 @@ authors = ["nazhifkojaz <nazhifkojaz@gmail.com>"]
 license = "MIT"
 readme = "README.md"
 packages = [{include = "gameinsights"}]
-homepage = "https://github.com/nazhifkojaz/steam-game-data-collector"
-repository = "https://github.com/nazhifkojaz/steam-game-data-collector"
+homepage = "https://github.com/nazhifkojaz/gameinsights"
+repository = "https://github.com/nazhifkojaz/gameinsights"
 keywords = ["steam", "gaming", "data-analysis", "web-scraping"]
 
 
