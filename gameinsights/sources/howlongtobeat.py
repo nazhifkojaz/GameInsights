@@ -301,6 +301,14 @@ class HowLongToBeat(BaseSource):
             Dict with only the valid labels, with time values converted to minutes.
         """
         result: dict[str, Any] = {}
+        time_labels = {
+            "comp_main",
+            "comp_plus",
+            "comp_100",
+            "comp_all",
+            "invested_co",
+            "invested_mp",
+        }
         for label in self._valid_labels:
             raw_value: Any = None
 
@@ -315,7 +323,7 @@ class HowLongToBeat(BaseSource):
                 raw_value = data.get(label, None)
 
             # Convert time fields from seconds to minutes
-            if raw_value is not None and label.startswith(('comp_', 'invested_')):
+            if raw_value is not None and label in time_labels:
                 result[label] = cast(int, raw_value) // 60
             else:
                 result[label] = raw_value
