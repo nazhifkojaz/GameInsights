@@ -58,11 +58,7 @@ class SteamAchievements(BaseSource):
             - If unsuccessful, will return an error message indicating the failure reason.
         """
 
-        self.logger.log(
-            f"Fetch data for appid {steam_appid}.",
-            level="info",
-            verbose=verbose,
-        )
+        steam_appid = self._prepare_identifier(steam_appid, verbose)
 
         if not self._api_key:
             self.logger.log(
@@ -71,10 +67,6 @@ class SteamAchievements(BaseSource):
                 verbose=verbose,
             )
 
-        # ensure steam_appid is string
-        steam_appid = str(steam_appid)
-
-        ## Prepare the params and make request
         # make request for achievement percentage data
         params = {
             "gameid": steam_appid,
@@ -100,13 +92,9 @@ class SteamAchievements(BaseSource):
         else:
             data_packed = self._transform_data(data=percentage_data)
 
-        if selected_labels:
-            data_packed = {
-                label: data_packed[label]
-                for label in self._filter_valid_labels(selected_labels=selected_labels)
-            }
-
-        return SuccessResult(success=True, data=data_packed)
+        return SuccessResult(
+            success=True, data=self._apply_label_filter(data_packed, selected_labels)
+        )
 
     def _fetch_schema_data(self, steam_appid: str, verbose: bool = True) -> SourceResult:
         # prepare the params

@@ -1,4 +1,4 @@
-# Steam Game Data Collector
+# GameInsights
 
 A unified tool for collecting Steam game data from multiple sources. Fetch steam game data based on its `steam_appid` from Steam Store, Steam Charts, Steam Reviews, Steam Spy, Gamalytic, HowLongToBeat, and Steam Web API.
 
@@ -38,29 +38,38 @@ A unified tool for collecting Steam game data from multiple sources. Fetch steam
 
 ## Installation
 
-**From PyPI (coming soon)**:
-```bash
-pip install steam-game-data-collector
-```
+> **Note**: This library is not yet published to PyPI. Install from GitHub for now.
 
-**From GitHub (beta)**:
+**From GitHub (recommended)**:
 ```bash
-pip install "git+https://github.com/nazhifkojaz/steam-game-data-collector.git"
+# Basic installation (no pandas - for API/bot usage)
+pip install "git+https://github.com/nazhifkojaz/gameinsights.git"
+
+# With DataFrame support (includes pandas)
+pip install "git+https://github.com/nazhifkojaz/gameinsights.git#egg=gameinsights[dataframe]"
 ```
 
 **Using Poetry**:
 ```bash
-poetry add git+https://github.com/nazhifkojaz/steam-game-data-collector.git
+# Basic installation
+poetry add git+https://github.com/nazhifkojaz/gameinsights.git
+
+# With DataFrame support
+poetry add git+https://github.com/nazhifkojaz/gameinsights.git --extras dataframe
 ```
 
 **For development**:
 ```bash
-git clone https://github.com/nazhifkojaz/steam-game-data-collector.git
-cd steam-game-data-collector
+git clone https://github.com/nazhifkojaz/gameinsights.git
+cd gameinsights
 poetry install
 # Optional: for development extras
 poetry install --with dev
+# Optional: for notebooks (includes pandas, matplotlib, jupyter)
+poetry install --with notebooks
 ```
+
+> **Note**: The `[dataframe]` extra includes pandas (~150MB with numpy). Only install it if you need DataFrame outputs from methods like `get_user_data()`, `get_games_active_player_data()`, or `get_game_review()`.
 
 
 ## Quickstart
@@ -76,20 +85,28 @@ print(full_data[0]["name"], full_data[0].get("owners"))
 *if no data provided by the sources, 'None' or 'NaN' will be assigned to the data labels*
 
 **Active players (SteamCharts):**
+> *Requires the `[dataframe]` extra*
 ```python
-df = collector.get_games_active_player_data(["570", "730"])  # pandas.DataFrame
+# Returns pandas.DataFrame - requires pandas
+df = collector.get_games_active_player_data(["570", "730"])
 print(df.head())
 ```
 
 **Reviews (Steam Reviews):**
+> *Requires the `[dataframe]` extra*
 ```python
+# Returns pandas.DataFrame - requires pandas
 reviews_df = collector.get_game_review("570", review_only=True)
 ```
 
 **Steam user/player data (Steam Web API):**
+> *DataFrame output requires the `[dataframe]` extra*
 ```python
 collector = Collector(steam_api_key="<YOUR_STEAM_WEB_API_KEY>")
+# With return_as="dataframe" (requires pandas)
 users_df = collector.get_user_data(["76561198084297256"], include_free_games=True)
+# With return_as="list" (works without pandas)
+users_list = collector.get_user_data(["76561198084297256"], return_as="list")
 ```
 
 **Direct source access:**
@@ -110,6 +127,24 @@ search = GameSearch()
 all_games = search.get_game_list()
 results = search.search_by_name("Dota", top_n=5)
 print(results)  # [{'appid': '570', 'name': 'Dota 2', 'search_score': 99.0}, ...]
+```
+
+**Command Line Interface:**
+```bash
+# Collect full game data for two appids and print JSON to stdout
+poetry run gameinsights collect --appid 570 --appid 730 --format json
+
+# Write recap view to CSV with limited sources
+poetry run gameinsights collect \
+  --appid 570 \
+  --source steamstore \
+  --source gamalytic \
+  --recap \
+  --format csv \
+  --output dota2.csv
+
+# Silence progress output
+poetry run gameinsights collect --appid 570 --quiet
 ```
 
 
@@ -143,37 +178,63 @@ print(results)  # [{'appid': '570', 'name': 'Dota 2', 'search_score': 99.0}, ...
 > **Note:** Some sources rely on scraping, which may violate its robots.txt — please use responsibly.
 
 
+## Observability
+
+- **Structured logging**: set `GAMEINSIGHTS_LOG_JSON=1` to emit JSON-formatted logs. Without it, logs use a `message | key=value` style.
+- **Lightweight metrics**: set `GAMEINSIGHTS_METRICS=1` to stream structured metrics (counters and timers) to stdout.  
+  Useful metrics include:
+  - `source_fetch_total` / `source_fetch_success_total` / `source_fetch_error_total`
+  - `source_fetch_duration_seconds` (per-source latency)
+  - `source_fetch_exception_total`
+- Every source fetch now emits start/completion events and records duration, making it easier to trace slow or failing providers.
+
+## Documentation
+
+Comprehensive schemas live in [`docs/`](docs):
+
+- [`docs/data_dictionary.md`](docs/data_dictionary.md) — canonical schema for the merged `GameDataModel`.
+- [`docs/sources/`](docs/sources) — per-source field references (Steam Store, Steam Spy, SteamCharts, Steam Review, Gamalytic, HowLongToBeat, Steam Achievements, Steam User).
+
 ## Data Model
 
 When `recap=False` (default), `get_games_data` returns **full normalized models** per `appid`.
 
-Key fields include:
+ Key fields include:
 - **steam_appid**: Steam appid (str)
 - **name**: Game name (Steam Store)
 - **developers / publishers**: Lists (Steam Store)
+- **type**: Game type (Steam Store)
 - **price_currency / price_initial / price_final**: Pricing info (Steam Store)
 - **metacritic_score**: Integer score (Steam Store)
 - **release_date / days_since_release**: Datetime & derived days (Steam Store)
+- **is_free**: Free-to-play flag (Steam Store)
+- **is_coming_soon**: Upcoming/pre-order flag (Steam Store)
+- **early_access**: Early access flag (Gamalytic)
+- **recommendations**: User recommendation count (Steam Store)
+- **followers**: Steam wishlist/follower count (Gamalytic)
 - **average_playtime_h / average_playtime**: Hours & seconds (Gamalytic)
 - **copies_sold / estimated_revenue / owners**: Sales estimates (Gamalytic)
 - **ccu**: Concurrent users (Steam Spy)
 - **active_player_24h / peak_active_player_all_time**: Peaks (Steam Charts)
 - **monthly_active_player**: Time series data (Steam Charts)
+- **discount**: Current discount percentage (Steam Spy)
 - **review_score / review_score_desc / total_positive / total_negative / total_reviews**: Reviews (Steam Reviews)
 - **achievements_count / achievements_percentage_average / achievements_list**: Achievements (Steam Web API)
 - **comp_main / comp_plus / comp_100 / comp_all**: Completion times (HowLongToBeat)
+- **protondb_tier**: Linux/Steam Deck compatibility tier (ProtonDB)
 - **languages / platforms / categories / genres / tags / content_rating**: Metadata
 
-**If `recap=True`**, returns a subset of the detailed data:
-- `steam_appid`, `name`, `developers`, `publishers`
+ **If `recap=True`**, returns a subset of the detailed data:
+- `steam_appid`, `name`, `developers`, `publishers`, `type`
 - `release_date`, `days_since_release`
 - `price_currency`, `price_initial`, `price_final`
-- `copies_sold`, `estimated_revenue`, `owners`
-- `total_positive`, `total_negative`, `total_reviews`
+- `is_free`, `early_access`, `copies_sold`, `estimated_revenue`, `owners`, `followers`
+- `total_positive`, `total_negative`, `total_reviews`, `metacritic_score`
 - `comp_main`, `comp_plus`, `comp_100`, `comp_all`, `invested_co`, `invested_mp`, `average_playtime`
 - `active_player_24h`, `peak_active_player_all_time`
 - `achievements_count`, `achievements_percentage_average`
 - `categories`, `genres`, `tags`
+- `protondb_tier`
 
 
 ## Development & Contributions

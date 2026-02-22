@@ -52,25 +52,18 @@ class SteamSpy(BaseSource):
             - If unsuccessful, will return an error message indicating the failure reason.
         """
 
-        self.logger.log(
-            f"Fetching data for appid {steam_appid}.",
-            level="info",
-            verbose=verbose,
-        )
-
-        # Ensure steam_appid is string
-        steam_appid = str(steam_appid)
+        steam_appid = self._prepare_identifier(steam_appid, verbose)
 
         # Prepare the params and make request
         params = {"request": "appdetails", "appid": steam_appid}
         response = self._make_request(params=params)
 
-        if response.status_code != 200:
+        data = self._fetch_and_parse_json(response, verbose)
+        if data is None:
             return self._build_error_result(
                 f"Failed to connect to API. Status code: {response.status_code}", verbose=verbose
             )
 
-        data = response.json()
         if not data.get("name", None):
             return self._build_error_result(
                 f"Game with appid {steam_appid} is not found.", verbose=verbose
@@ -78,12 +71,9 @@ class SteamSpy(BaseSource):
 
         data_packed = self._transform_data(data=data)
 
-        if selected_labels:
-            data_packed = {
-                label: data_packed[label] for label in self._filter_valid_labels(selected_labels)
-            }
-
-        return SuccessResult(success=True, data=data_packed)
+        return SuccessResult(
+            success=True, data=self._apply_label_filter(data_packed, selected_labels)
+        )
 
     def _transform_data(self, data: dict[str, Any]) -> dict[str, Any]:
         # repack / process the data if needed

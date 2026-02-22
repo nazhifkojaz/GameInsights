@@ -42,6 +42,10 @@ class TestGameDataModel:
                 "release_date": lambda value: (
                     isinstance(value, datetime) and value == datetime(2025, 1, 1)
                 ),
+                "is_free": True,
+                "is_coming_soon": False,
+                "recommendations": 1000,
+                "discount": 25.5,
             },
         )
         assert_model_field_count(game_data)
@@ -115,6 +119,11 @@ class TestGameDataModel:
             "tags": ["RPG", "MOBA"],
             "average_playtime": 1234 * 3600,
             "total_reviews": None,
+            "is_free": True,
+            # New recap fields
+            "protondb_tier": "platinum",
+            "early_access": False,
+            "metacritic_score": 85,
         }
 
         for field, expected in expectations.items():

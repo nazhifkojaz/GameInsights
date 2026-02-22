@@ -1,6 +1,7 @@
 from .base import BaseSource, ErrorResult, SourceResult, SuccessResult
 from .gamalytic import Gamalytic
 from .howlongtobeat import HowLongToBeat
+from .protondb import ProtonDB
 from .steamachievements import SteamAchievements
 from .steamcharts import SteamCharts
 from .steamreview import SteamReview
@@ -13,6 +14,7 @@ __all__ = [
     "ErrorResult",
     "Gamalytic",
     "HowLongToBeat",
+    "ProtonDB",
     "SourceResult",
     "SteamAchievements",
     "SteamCharts",

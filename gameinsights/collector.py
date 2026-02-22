@@ -1,13 +1,35 @@
-import time
-from typing import Any, Literal, NamedTuple
+from __future__ import annotations
 
-import pandas as pd
+import time
+from dataclasses import dataclass
+from typing import TYPE_CHECKING, Any, Literal, NamedTuple
 
 from gameinsights import sources
 from gameinsights.model.game_data import GameDataModel
 from gameinsights.sources.base import SourceResult
 from gameinsights.utils import LoggerWrapper, metrics
+from gameinsights.utils.import_optional import import_pandas
 from gameinsights.utils.ratelimit import logged_rate_limited
+
+if TYPE_CHECKING:
+    import pandas as pd
+
+
+@dataclass
+class FetchResult:
+    """Result of fetching data for a single game/user.
+
+    Attributes:
+        identifier: The appid or steamid that was fetched
+        success: Whether the fetch was successful
+        data: The fetched data (if successful)
+        error: Error message (if failed)
+    """
+
+    identifier: str
+    success: bool
+    data: dict[str, Any] | None = None
+    error: str | None = None
 
 
 class SourceConfig(NamedTuple):
@@ -63,6 +85,9 @@ class Collector:
         self.steamachievements = sources.SteamAchievements(api_key=self.steam_api_key)
         self.steamuser = sources.SteamUser(api_key=self.steam_api_key)
 
+        # New sources
+        self.protondb = sources.ProtonDB()
+
     def _init_sources_config(self) -> None:
         """Initialize sources config."""
         self._id_based_sources = [
@@ -83,13 +108,24 @@ class Collector:
                     "metacritic_score",
                     "release_date",
                     "content_rating",
+                    "is_free",
+                    "is_coming_soon",
+                    "recommendations",
                 ],
             ),
             SourceConfig(
                 self.gamalytic,
-                ["average_playtime_h", "copies_sold", "estimated_revenue", "owners", "languages"],
+                [
+                    "average_playtime_h",
+                    "copies_sold",
+                    "estimated_revenue",
+                    "owners",
+                    "languages",
+                    "followers",
+                    "early_access",
+                ],
             ),
-            SourceConfig(self.steamspy, ["ccu", "tags"]),
+            SourceConfig(self.steamspy, ["ccu", "tags", "discount"]),
             SourceConfig(
                 self.steamcharts,
                 ["active_player_24h", "peak_active_player_all_time", "monthly_active_player"],
@@ -112,6 +148,16 @@ class Collector:
                     "achievements_list",
                 ],
             ),
+            SourceConfig(
+                self.protondb,
+                [
+                    "protondb_tier",
+                    "protondb_score",
+                    "protondb_trending",
+                    "protondb_confidence",
+                    "protondb_total",
+                ],
+            ),
         ]
 
         self._name_based_sources = [
@@ -131,7 +177,7 @@ class Collector:
                     "invested_co_count",
                     "invested_mp_count",
                     "count_comp",
-                    "count_speedrun",
+                    "count_speed_run",
                     "count_backlog",
                     "count_review",
                     "review_score",
@@ -199,11 +245,18 @@ class Collector:
         verbose: bool = True,
     ) -> list[dict[str, Any]] | pd.DataFrame:
         """Fetch user data from provided steamids.
+
         Args:
-            steamids (str | list[str]): Either a single or a list of 64bit SteamIDs
-            include_free_games (bool): If True, will include free games when fetching users' owned games list. Default to True.
-            return_as (str): Return format, "list" for list of dicts, "dataframe" for pandas DataFrame. Default to "dataframe".
-            verbose (bool): If True, will log the fetching process.
+            steamids: Either a single or a list of 64bit SteamIDs.
+            include_free_games: If True, will include free games when fetching users' owned games list. Default to True.
+            return_as: Return format, "list" for list of dicts (works without pandas), "dataframe" for pandas DataFrame (requires pandas). Default to "dataframe".
+            verbose: If True, will log the fetching process.
+
+        Returns:
+            list[dict[str, Any]] | pd.DataFrame: User data. Returns list if return_as="list", DataFrame if return_as="dataframe".
+
+        Raises:
+            ImportError: If return_as="dataframe" and pandas is not installed. Install with: pip install gameinsights[dataframe]
         """
         steamid_list = (
             [steamids] if isinstance(steamids, str) or isinstance(steamids, int) else steamids
@@ -231,41 +284,50 @@ class Collector:
                     results.append(user_data)
 
                 time.sleep(0.25)  # internal sleep to prevent over-calling
-            except Exception:
+            except Exception as e:
                 self.logger.log(
-                    f"Error fetching data for steamid {steamid}: e", level="error", verbose=True
+                    f"Error fetching data for steamid {steamid}: {e}", level="error", verbose=True
                 )
 
         if return_as == "dataframe":
-            return pd.DataFrame(results)
+            pd = import_pandas()
+            return pd.DataFrame(results)  # type: ignore[no-any-return]
 
         return results
 
     def get_games_data(
-        self, steam_appids: str | list[str], recap: bool = False, verbose: bool = True
-    ) -> list[dict[str, Any]]:
+        self,
+        steam_appids: str | list[str],
+        recap: bool = False,
+        verbose: bool = True,
+        include_failures: bool = False,
+    ) -> list[dict[str, Any]] | tuple[list[dict[str, Any]], list[FetchResult]]:
         """Fetch game recap data.
         Game recap data includes game appid, name, release date, days since released, price and its currency, developer, publisher, genres, positive and negative reviews, review ratio, copies sold, estimated revenue, active players in the last 24 hours and in all time.
         Args:
             steam_appids (str): steam_appid of the game(s) to fetch data for.
             recap (bool): If True, will return the recap data (for reference: check _RECAP_LABELS).
             verbose (bool): If True, will log the fetching process.
+            include_failures (bool): If True, returns tuple of (successful_data, all_results_with_status).
 
         Returns:
-            list[dict[str, Any]]: List of games recap data.
+            list[dict[str, Any]]: List of games recap data (when include_failures=False).
+            tuple[list[dict[str, Any]], list[FetchResult]]: Tuple of successful data and all results (when include_failures=True).
 
         Behavior:
             - Returns an empty list if no data could be fetched.
             - Returns complete/partial data if all/any appids succeed.
+            - When include_failures=True, tracks which appids failed and why.
         """
 
         if not steam_appids:
-            return []
+            return [] if not include_failures else ([], [])
 
         if isinstance(steam_appids, (str, int)):
             steam_appids = [steam_appids]
 
         result = []
+        all_results: list[FetchResult] = []
         total = len(steam_appids)
         for idx, appid in enumerate(steam_appids, start=1):
             self.logger.log(
@@ -277,36 +339,52 @@ class Collector:
                 game_data = self._fetch_raw_data(appid, verbose=verbose)
                 payload = game_data.get_recap() if recap else game_data.model_dump()
                 result.append(payload)
+                all_results.append(FetchResult(identifier=str(appid), success=True, data=payload))
             except Exception as e:
                 self.logger.log(
-                    f"Error fecthing data for game {appid} with {e} error..",
+                    f"Error fetching data for game {appid} with {e} error..",
                     level="error",
                     verbose=True,
                 )
+                all_results.append(FetchResult(identifier=str(appid), success=False, error=str(e)))
 
+        if include_failures:
+            return result, all_results
         return result
 
     def get_games_active_player_data(
-        self, steam_appids: str | list[str], fill_na_as: int = -1, verbose: bool = True
-    ) -> pd.DataFrame:
+        self,
+        steam_appids: str | list[str],
+        fill_na_as: int = -1,
+        verbose: bool = True,
+        include_failures: bool = False,
+    ) -> pd.DataFrame | tuple[pd.DataFrame, list[FetchResult]]:
         """Fetch active player data for multiple appids.
+
         Args:
-            appids (list[str]): List of appids to fetch active player data for.
-            fill_na_as (int): Value to fill NaN values in the DataFrame. Default is -1.
-            verbose (str): If True, will log the fetching process.
+            steam_appids: List of appids to fetch active player data for.
+            fill_na_as: Value to fill NaN values in the DataFrame. Default is -1.
+            verbose: If True, will log the fetching process.
+            include_failures: If True, returns tuple of (dataframe, all_results_with_status).
 
         Returns:
-            pd.DataFrame: DataFrame containing active player data for all appids.
+            pd.DataFrame: DataFrame containing active player data for all appids (when include_failures=False).
+            tuple[pd.DataFrame, list[FetchResult]]: Tuple of DataFrame and all results (when include_failures=True).
+
+        Raises:
+            ImportError: If pandas is not installed. Install with: pip install gameinsights[dataframe]
         """
 
         if not steam_appids:
-            return pd.DataFrame()
+            pd = import_pandas()
+            return pd.DataFrame() if not include_failures else (pd.DataFrame(), [])
         if isinstance(steam_appids, (str, int)):
             steam_appids = [steam_appids]
 
         all_months: set[str] = set()
         all_data = []
         total = len(steam_appids)
+        all_results: list[FetchResult] = []
 
         for idx, appid in enumerate(steam_appids, start=1):
             self.logger.log(
@@ -344,18 +422,31 @@ class Collector:
                         }
                     )
                     all_months.update(monthly_data.keys())
+                    all_results.append(
+                        FetchResult(identifier=str(appid), success=True, data=game_record.copy())
+                    )
+                else:
+                    all_results.append(
+                        FetchResult(
+                            identifier=str(appid),
+                            success=False,
+                            error=active_player_data.get("error", "Unknown error"),
+                        )
+                    )
             except Exception as e:
                 self.logger.log(
                     f"Error fetching active player data for appid {appid}: {e}",
                     level="error",
                     verbose=True,
                 )
+                all_results.append(FetchResult(identifier=str(appid), success=False, error=str(e)))
             all_data.append(game_record)
 
         # sort the months chronologically
         sorted_months = sorted(all_months)
 
         # create a dataframe with all months as columns
+        pd = import_pandas()
         df = pd.DataFrame(
             all_data,
             columns=["steam_appid", "name", "peak_active_player_all_time"] + sorted_months,
@@ -364,12 +455,27 @@ class Collector:
         # fill NaN values with the specified value
         df.fillna(fill_na_as, inplace=True)
 
-        return df
+        if include_failures:
+            return df, all_results
+        return df  # type: ignore[no-any-return]
 
     def get_game_review(
         self, steam_appid: str, verbose: bool = True, review_only: bool = True
     ) -> pd.DataFrame:
+        """Fetch game reviews from Steam.
 
+        Args:
+            steam_appid: The Steam appid of the game.
+            verbose: If True, will log the fetching process.
+            review_only: If True, returns only reviews. If False, returns full review data.
+
+        Returns:
+            pd.DataFrame: DataFrame containing review data.
+
+        Raises:
+            ValueError: If steam_appid is empty.
+            ImportError: If pandas is not installed. Install with: pip install gameinsights[dataframe]
+        """
         if not steam_appid:
             raise ValueError("steam_appid must be a non-empty.")
 
@@ -379,6 +485,7 @@ class Collector:
             verbose=verbose,
         )
 
+        pd = import_pandas()
         try:
             reviews_data = self.steamreview.fetch(
                 steam_appid=steam_appid,
@@ -392,14 +499,14 @@ class Collector:
 
             if reviews_data["success"]:
                 if review_only:
-                    return pd.DataFrame(reviews_data["data"]["reviews"])
+                    return pd.DataFrame(reviews_data["data"]["reviews"])  # type: ignore[no-any-return]
                 else:
-                    return pd.DataFrame([reviews_data["data"]])
+                    return pd.DataFrame([reviews_data["data"]])  # type: ignore[no-any-return]
         except Exception as e:
             self.logger.log(
                 f"Error fetching reviews for appid {steam_appid}: {e}", level="error", verbose=True
             )
-        return pd.DataFrame([])
+        return pd.DataFrame([])  # type: ignore[no-any-return]
 
     @logged_rate_limited()
     def _fetch_raw_data(self, steam_appid: str, verbose: bool = True) -> "GameDataModel":
@@ -490,3 +597,30 @@ class Collector:
         )
 
         return result
+
+    def __enter__(self) -> "Collector":
+        """Enter the context manager.
+
+        Returns:
+            The Collector instance.
+        """
+        return self
+
+    def __exit__(self, *args: object) -> None:
+        """Exit the context manager and close the session.
+
+        Args:
+            *args: Exception info (unused).
+        """
+        self.close()
+
+    def close(self) -> None:
+        """Close the shared session and release resources.
+
+        This method should be called when done making requests to properly
+        close HTTP connections and release resources. When using the Collector
+        as a context manager, this is called automatically.
+        """
+        from gameinsights.sources.base import BaseSource
+
+        BaseSource.close_session()
