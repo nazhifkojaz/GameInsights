@@ -1,12 +1,15 @@
 from __future__ import annotations
 
 import argparse
+import csv
+import io
 import json
 import sys
 from pathlib import Path
-from typing import Any, Iterable
+from typing import TYPE_CHECKING, Any, Iterable
 
-import pandas as pd
+if TYPE_CHECKING:
+    import pandas as pd
 
 from gameinsights.collector import Collector, SourceConfig
 
@@ -53,11 +56,33 @@ def _filter_records(
 
 
 def _output_data(
-    data: list[dict[str, Any]] | pd.DataFrame, fmt: str, output_path: str | None
+    data: list[dict[str, Any]] | "pd.DataFrame", fmt: str, output_path: str | None
 ) -> None:
+    """Output data in the specified format.
+
+    Args:
+        data: Either a list of dicts or a pandas DataFrame.
+        fmt: Output format ('json' or 'csv').
+        output_path: Optional file path (stdout if None).
+    """
+    # Check pandas availability once
+    try:
+        import pandas as pd
+
+        _has_pandas = True
+    except ImportError:
+        _has_pandas = False
+        pd = None  # type: ignore
+
     if fmt == "json":
-        payload = data.to_dict(orient="records") if isinstance(data, pd.DataFrame) else data
-        rendered = json.dumps(payload, indent=2, default=str)
+        # JSON works without pandas
+        json_payload: list[dict[str, Any]]
+        if _has_pandas and isinstance(data, pd.DataFrame):
+            json_payload = data.to_dict(orient="records")  # type: ignore[assignment]
+        else:
+            json_payload = data if isinstance(data, list) else []
+
+        rendered = json.dumps(json_payload, indent=2, default=str)
         if output_path:
             destination = Path(output_path)
             destination.parent.mkdir(parents=True, exist_ok=True)
@@ -66,13 +91,39 @@ def _output_data(
             print(rendered)
         return
 
-    frame = data if isinstance(data, pd.DataFrame) else pd.DataFrame(data)
-    if output_path:
-        destination = Path(output_path)
-        destination.parent.mkdir(parents=True, exist_ok=True)
-        frame.to_csv(destination, index=False)
+    # CSV output with fallback
+    if _has_pandas and isinstance(data, pd.DataFrame):
+        # Use pandas if available
+        frame = data
+        if output_path:
+            destination = Path(output_path)
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            frame.to_csv(destination, index=False)
+        else:
+            print(frame.to_csv(index=False), end="")
     else:
-        print(frame.to_csv(index=False), end="")
+        # Use stdlib csv.DictWriter as fallback
+        if isinstance(data, list):
+            records = data
+        else:
+            records = []
+
+        if not records:
+            return
+        if output_path:
+            destination = Path(output_path)
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            with destination.open("w", newline="", encoding="utf-8") as f:
+                writer = csv.DictWriter(f, fieldnames=records[0].keys())
+                writer.writeheader()
+                writer.writerows(records)
+        else:
+            buffer = io.StringIO()
+            writer = csv.DictWriter(buffer, fieldnames=records[0].keys())
+            writer.writeheader()
+            writer.writerows(records)
+            buffer.seek(0)
+            print(buffer.read(), end="")
 
 
 def build_collect_parser() -> argparse.ArgumentParser:

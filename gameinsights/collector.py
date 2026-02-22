@@ -1,14 +1,18 @@
+from __future__ import annotations
+
 import time
 from dataclasses import dataclass
-from typing import Any, Literal, NamedTuple
-
-import pandas as pd
+from typing import TYPE_CHECKING, Any, Literal, NamedTuple
 
 from gameinsights import sources
 from gameinsights.model.game_data import GameDataModel
 from gameinsights.sources.base import SourceResult
 from gameinsights.utils import LoggerWrapper, metrics
+from gameinsights.utils.import_optional import import_pandas
 from gameinsights.utils.ratelimit import logged_rate_limited
+
+if TYPE_CHECKING:
+    import pandas as pd
 
 
 @dataclass
@@ -241,11 +245,18 @@ class Collector:
         verbose: bool = True,
     ) -> list[dict[str, Any]] | pd.DataFrame:
         """Fetch user data from provided steamids.
+
         Args:
-            steamids (str | list[str]): Either a single or a list of 64bit SteamIDs
-            include_free_games (bool): If True, will include free games when fetching users' owned games list. Default to True.
-            return_as (str): Return format, "list" for list of dicts, "dataframe" for pandas DataFrame. Default to "dataframe".
-            verbose (bool): If True, will log the fetching process.
+            steamids: Either a single or a list of 64bit SteamIDs.
+            include_free_games: If True, will include free games when fetching users' owned games list. Default to True.
+            return_as: Return format, "list" for list of dicts (works without pandas), "dataframe" for pandas DataFrame (requires pandas). Default to "dataframe".
+            verbose: If True, will log the fetching process.
+
+        Returns:
+            list[dict[str, Any]] | pd.DataFrame: User data. Returns list if return_as="list", DataFrame if return_as="dataframe".
+
+        Raises:
+            ImportError: If return_as="dataframe" and pandas is not installed. Install with: pip install gameinsights[dataframe]
         """
         steamid_list = (
             [steamids] if isinstance(steamids, str) or isinstance(steamids, int) else steamids
@@ -279,7 +290,8 @@ class Collector:
                 )
 
         if return_as == "dataframe":
-            return pd.DataFrame(results)
+            pd = import_pandas()
+            return pd.DataFrame(results)  # type: ignore[no-any-return]
 
         return results
 
@@ -348,18 +360,23 @@ class Collector:
         include_failures: bool = False,
     ) -> pd.DataFrame | tuple[pd.DataFrame, list[FetchResult]]:
         """Fetch active player data for multiple appids.
+
         Args:
-            appids (list[str]): List of appids to fetch active player data for.
-            fill_na_as (int): Value to fill NaN values in the DataFrame. Default is -1.
-            verbose (str): If True, will log the fetching process.
-            include_failures (bool): If True, returns tuple of (dataframe, all_results_with_status).
+            steam_appids: List of appids to fetch active player data for.
+            fill_na_as: Value to fill NaN values in the DataFrame. Default is -1.
+            verbose: If True, will log the fetching process.
+            include_failures: If True, returns tuple of (dataframe, all_results_with_status).
 
         Returns:
             pd.DataFrame: DataFrame containing active player data for all appids (when include_failures=False).
             tuple[pd.DataFrame, list[FetchResult]]: Tuple of DataFrame and all results (when include_failures=True).
+
+        Raises:
+            ImportError: If pandas is not installed. Install with: pip install gameinsights[dataframe]
         """
 
         if not steam_appids:
+            pd = import_pandas()
             return pd.DataFrame() if not include_failures else (pd.DataFrame(), [])
         if isinstance(steam_appids, (str, int)):
             steam_appids = [steam_appids]
@@ -429,6 +446,7 @@ class Collector:
         sorted_months = sorted(all_months)
 
         # create a dataframe with all months as columns
+        pd = import_pandas()
         df = pd.DataFrame(
             all_data,
             columns=["steam_appid", "name", "peak_active_player_all_time"] + sorted_months,
@@ -439,11 +457,25 @@ class Collector:
 
         if include_failures:
             return df, all_results
-        return df
+        return df  # type: ignore[no-any-return]
 
     def get_game_review(
         self, steam_appid: str, verbose: bool = True, review_only: bool = True
     ) -> pd.DataFrame:
+        """Fetch game reviews from Steam.
+
+        Args:
+            steam_appid: The Steam appid of the game.
+            verbose: If True, will log the fetching process.
+            review_only: If True, returns only reviews. If False, returns full review data.
+
+        Returns:
+            pd.DataFrame: DataFrame containing review data.
+
+        Raises:
+            ValueError: If steam_appid is empty.
+            ImportError: If pandas is not installed. Install with: pip install gameinsights[dataframe]
+        """
         if not steam_appid:
             raise ValueError("steam_appid must be a non-empty.")
 
@@ -453,6 +485,7 @@ class Collector:
             verbose=verbose,
         )
 
+        pd = import_pandas()
         try:
             reviews_data = self.steamreview.fetch(
                 steam_appid=steam_appid,
@@ -466,14 +499,14 @@ class Collector:
 
             if reviews_data["success"]:
                 if review_only:
-                    return pd.DataFrame(reviews_data["data"]["reviews"])
+                    return pd.DataFrame(reviews_data["data"]["reviews"])  # type: ignore[no-any-return]
                 else:
-                    return pd.DataFrame([reviews_data["data"]])
+                    return pd.DataFrame([reviews_data["data"]])  # type: ignore[no-any-return]
         except Exception as e:
             self.logger.log(
                 f"Error fetching reviews for appid {steam_appid}: {e}", level="error", verbose=True
             )
-        return pd.DataFrame([])
+        return pd.DataFrame([])  # type: ignore[no-any-return]
 
     @logged_rate_limited()
     def _fetch_raw_data(self, steam_appid: str, verbose: bool = True) -> "GameDataModel":

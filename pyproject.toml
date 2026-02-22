@@ -19,13 +19,15 @@ fake-useragent = "^2.2.0"
 ratelimit = "^2.2.1"
 rapidfuzz = "^3.13.0"
 pydantic = "^2.11.7"
-pandas = "^2.3.3"
+
+[tool.poetry.extras]
+dataframe = ["pandas"]
 
 
 [tool.poetry.group.notebooks.dependencies]
 jupyter = "^1.1.1"
 matplotlib = "^3.10.3"
-pandas = "^2.2.3"
+pandas = "^2.3.3"
 
 
 [tool.poetry.group.dev.dependencies]
@@ -91,8 +93,12 @@ module = [
     "requests.*",
     "bs4.*",
     "fake_useragent.*",
-    "ratelimit.*"
+    "ratelimit.*",
 ]
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = ["pandas.*"]
 ignore_missing_imports = true
 
 [tool.poetry.scripts]
