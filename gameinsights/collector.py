@@ -688,7 +688,7 @@ class Collector:
 
         normalized_data = []
         for record in all_data:
-            normalized_record = {}
+            normalized_record: dict[str, str | int | None] = {}
             for col in fixed_columns + sorted_months:
                 value = record.get(col)
                 if col in numeric_columns:
