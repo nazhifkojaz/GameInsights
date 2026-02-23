@@ -100,3 +100,38 @@ class TestRateLimit:
 
         with pytest.raises(ValueError):
             dummy.do_work()
+
+    def test_ratelimit_does_not_configure_root_logger(self, monkeypatch):
+        """Verify that importing ratelimit doesn't pollute the root logger.
+
+        Libraries should NEVER call logging.basicConfig() as it hijacks
+        the root logger of any importing application (FastAPI, Discord.py, etc.).
+        """
+        import logging
+        import sys
+
+        # Remove module if already imported to test fresh import
+        if "gameinsights.utils.ratelimit" in sys.modules:
+            del sys.modules["gameinsights.utils.ratelimit"]
+
+        # Clear root logger handlers (isolate test from other imports)
+        root = logging.getLogger()
+        original_handlers = root.handlers[:]
+        original_level = root.level
+        root.handlers = []
+        root.setLevel(logging.WARNING)  # Non-default level to detect changes
+
+        try:
+            # Import the module (this is where basicConfig would be called if present)
+            __import__("gameinsights.utils.ratelimit")
+
+            # Verify root logger was NOT configured
+            assert (
+                root.handlers == []
+            ), "Importing ratelimit should not add handlers to root logger"
+            assert (
+                root.level == logging.WARNING
+            ), "Importing ratelimit should not change root logger level"
+        finally:
+            root.handlers = original_handlers
+            root.setLevel(original_level)

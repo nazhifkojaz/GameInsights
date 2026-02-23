@@ -6,7 +6,6 @@ from typing import Any
 
 from ratelimit import RateLimitException, limits
 
-logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
