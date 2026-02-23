@@ -2,13 +2,13 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from typing import Any, Iterator
+from typing import Any, Iterator, Literal
 
 import pandas as pd
 import pytest
 
 from gameinsights import cli
-from gameinsights.collector import SourceConfig
+from gameinsights.collector import FetchResult, SourceConfig
 
 
 class _DummySource:
@@ -49,13 +49,27 @@ class _DummyCollector:
         return self._records
 
     def get_games_active_player_data(
-        self, steam_appids: list[str], verbose: bool = False
-    ) -> pd.DataFrame:
-        data = {
-            "steam_appid": ["12345"],
-            "active_player_24h": [111],
-        }
-        return pd.DataFrame(data)
+        self,
+        steam_appids: list[str],
+        fill_na_as: int = -1,
+        verbose: bool = False,
+        include_failures: bool = False,
+        *,
+        return_as: Literal["list", "dataframe"] = "list",
+    ) -> (
+        list[dict[str, Any]]
+        | pd.DataFrame
+        | tuple[list[dict[str, Any]], list[FetchResult]]
+        | tuple[pd.DataFrame, list[FetchResult]]
+    ):
+        # Return list of dict for default return_as="list"
+        data = [
+            {
+                "steam_appid": "12345",
+                "active_player_24h": 111,
+            }
+        ]
+        return data
 
     def close(self) -> None:
         """Close the owned session.

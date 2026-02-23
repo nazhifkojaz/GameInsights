@@ -571,26 +571,44 @@ class Collector:
         fill_na_as: int = -1,
         verbose: bool = True,
         include_failures: bool = False,
-    ) -> pd.DataFrame | tuple[pd.DataFrame, list[FetchResult]]:
+        *,
+        return_as: Literal["list", "dataframe"] = "list",
+    ) -> (
+        list[dict[str, Any]]
+        | pd.DataFrame
+        | tuple[list[dict[str, Any]], list[FetchResult]]
+        | tuple[pd.DataFrame, list[FetchResult]]
+    ):
         """Fetch active player data for multiple appids.
 
         Args:
             steam_appids: List of appids to fetch active player data for.
-            fill_na_as: Value to fill NaN values in the DataFrame. Default is -1.
+            fill_na_as: Value to fill missing values with. Default is -1.
             verbose: If True, will log the fetching process.
-            include_failures: If True, returns tuple of (dataframe, all_results_with_status).
+            include_failures: If True, returns tuple of (data, all_results_with_status).
+            return_as: Format to return data in. "list" returns list[dict],
+                "dataframe" returns pd.DataFrame. Default is "list".
 
         Returns:
-            pd.DataFrame: DataFrame containing active player data for all appids (when include_failures=False).
-            tuple[pd.DataFrame, list[FetchResult]]: Tuple of DataFrame and all results (when include_failures=True).
+            list[dict[str, Any]]: List of dicts containing active player data
+                (when include_failures=False and return_as="list").
+            tuple[list[dict[str, Any]], list[FetchResult]]: Tuple of list and results
+                (when include_failures=True and return_as="list").
+            pd.DataFrame: DataFrame containing active player data
+                (when include_failures=False and return_as="dataframe").
+            tuple[pd.DataFrame, list[FetchResult]]: Tuple of DataFrame and results
+                (when include_failures=True and return_as="dataframe").
 
         Raises:
-            ImportError: If pandas is not installed. Install with: pip install gameinsights[dataframe]
+            DependencyNotInstalledError: If return_as="dataframe" and pandas is not installed.
         """
 
+        # Handle empty input - returns appropriate empty type based on return_as and include_failures
         if not steam_appids:
-            pd = self._require_pandas()
-            return pd.DataFrame() if not include_failures else (pd.DataFrame(), [])
+            if return_as == "dataframe":
+                pd = self._require_pandas()
+                return pd.DataFrame() if not include_failures else (pd.DataFrame(), [])
+            return [] if not include_failures else ([], [])
         if isinstance(steam_appids, (str, int)):
             steam_appids = [steam_appids]
 
@@ -655,39 +673,53 @@ class Collector:
                 all_results.append(FetchResult(identifier=str(appid), success=False, error=str(e)))
             all_data.append(game_record)
 
-        # sort the months chronologically
+        # Normalize records - fill missing values consistently
         sorted_months = sorted(all_months)
+        fixed_columns = ["steam_appid", "name", "peak_active_player_all_time"]
 
-        # create a dataframe with all months as columns
-        pd = self._require_pandas()
-        df = pd.DataFrame(
-            all_data,
-            columns=["steam_appid", "name", "peak_active_player_all_time"] + sorted_months,
-        )
+        normalized_data = []
+        for record in all_data:
+            normalized_record = {}
+            for col in fixed_columns + sorted_months:
+                value = record.get(col)
+                # Fill None or missing keys with fill_na_as (matches DataFrame.fillna behavior)
+                normalized_record[col] = value if value is not None else fill_na_as
+            normalized_data.append(normalized_record)
 
-        # fill NaN values with the specified value
-        df.fillna(fill_na_as, inplace=True)
+        if return_as == "dataframe":
+            pd = self._require_pandas()
+            df = pd.DataFrame(normalized_data, columns=fixed_columns + sorted_months)
+            # fillna for safety (data already normalized but keeps defensive behavior)
+            df.fillna(fill_na_as, inplace=True)
+            return (df, all_results) if include_failures else df
 
-        if include_failures:
-            return df, all_results
-        return df  # type: ignore[no-any-return]
+        return (normalized_data, all_results) if include_failures else normalized_data
 
     def get_game_review(
-        self, steam_appid: str, verbose: bool = True, review_only: bool = True
-    ) -> pd.DataFrame:
+        self,
+        steam_appid: str,
+        verbose: bool = True,
+        review_only: bool = True,
+        *,
+        return_as: Literal["list", "dataframe"] = "list",
+    ) -> list[dict[str, Any]] | pd.DataFrame:
         """Fetch game reviews from Steam.
 
         Args:
             steam_appid: The Steam appid of the game.
             verbose: If True, will log the fetching process.
             review_only: If True, returns only reviews. If False, returns full review data.
+            return_as: Format to return data in. "list" returns list[dict],
+                "dataframe" returns pd.DataFrame. Default is "list".
 
         Returns:
-            pd.DataFrame: DataFrame containing review data.
+            list[dict[str, Any]]: List of dicts containing review data
+                (when return_as="list").
+            pd.DataFrame: DataFrame containing review data (when return_as="dataframe").
 
         Raises:
             InvalidRequestError: If steam_appid is empty.
-            DependencyNotInstalledError: If pandas is not installed.
+            DependencyNotInstalledError: If return_as="dataframe" and pandas is not installed.
         """
         if not steam_appid:
             raise InvalidRequestError("steam_appid must be a non-empty string.")
@@ -698,7 +730,7 @@ class Collector:
             verbose=verbose,
         )
 
-        pd = self._require_pandas()
+        records: list[dict[str, Any]] = []
         try:
             reviews_data = self.steamreview.fetch(
                 steam_appid=steam_appid,
@@ -711,15 +743,19 @@ class Collector:
             )
 
             if reviews_data["success"]:
-                if review_only:
-                    return pd.DataFrame(reviews_data["data"]["reviews"])  # type: ignore[no-any-return]
-                else:
-                    return pd.DataFrame([reviews_data["data"]])  # type: ignore[no-any-return]
+                records = (
+                    reviews_data["data"]["reviews"] if review_only else [reviews_data["data"]]
+                )
         except Exception as e:
             self.logger.log(
                 f"Error fetching reviews for appid {steam_appid}: {e}", level="error", verbose=True
             )
-        return pd.DataFrame([])  # type: ignore[no-any-return]
+
+        if return_as == "dataframe":
+            pd = self._require_pandas()
+            return pd.DataFrame(records)  # type: ignore[no-any-return]
+
+        return records
 
     @logged_rate_limited()
     def _fetch_raw_data(

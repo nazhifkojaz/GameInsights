@@ -34,12 +34,12 @@ class TestCollector:
     def test_get_games_active_player_data(self, collector_with_mocks, appids, expected_len):
         active_player_data = collector_with_mocks.get_games_active_player_data(steam_appids=appids)
 
-        assert isinstance(active_player_data, pd.DataFrame)
+        assert isinstance(active_player_data, list)
         assert len(active_player_data) == expected_len
 
         if expected_len > 0:
-            assert "steam_appid" in active_player_data.columns
-            assert active_player_data["steam_appid"].iloc[0] == "12345"
+            assert isinstance(active_player_data[0], dict)
+            assert active_player_data[0]["steam_appid"] == "12345"
 
     @pytest.mark.parametrize(
         "review_only, has_reviews_labels",
@@ -51,13 +51,15 @@ class TestCollector:
             steam_appid="12345", review_only=review_only
         )
 
-        assert isinstance(review_data, pd.DataFrame)
+        assert isinstance(review_data, list)
 
         if has_reviews_labels:
-            assert "reviews" in review_data.columns
-            assert len(review_data["reviews"]) > 0
+            # When review_only=False, returns list with single dict containing reviews
+            assert "reviews" in review_data[0]
+            assert len(review_data[0]["reviews"]) > 0
         else:
-            assert "reviews" not in review_data.columns
+            # When review_only=True, returns list of review dicts
+            assert "reviews" not in review_data[0] if review_data else True
 
     def test_all_collector_fields_exist_in_model(self, collector_with_mocks):
         """Verify all collector field names exist in GameDataModel."""
@@ -107,24 +109,44 @@ class TestCollector:
 
     def test_get_games_active_player_data_with_failures(self, collector_with_mocks):
         """Test that include_failures=True returns tuple with FetchResult list."""
-        df, results = collector_with_mocks.get_games_active_player_data(
+        data, results = collector_with_mocks.get_games_active_player_data(
             steam_appids=["12345"], include_failures=True
         )
 
-        assert isinstance(df, pd.DataFrame)
+        assert isinstance(data, list)
         assert isinstance(results, list)
         assert len(results) == 1
         assert isinstance(results[0], FetchResult)
         assert results[0].success is True
         assert results[0].identifier == "12345"
 
-    def test_get_games_active_player_data_backward_compatible(self, collector_with_mocks):
-        """Test that default behavior returns DataFrame only."""
-        df = collector_with_mocks.get_games_active_player_data(steam_appids=["12345"])
+    def test_get_games_active_player_data_as_dataframe(self, collector_with_mocks):
+        """Test that return_as='dataframe' returns DataFrame."""
+        df = collector_with_mocks.get_games_active_player_data(
+            steam_appids=["12345"], return_as="dataframe"
+        )
 
-        # Should return DataFrame, not tuple
         assert isinstance(df, pd.DataFrame)
         assert not isinstance(df, tuple)
+
+    def test_get_game_review_as_dataframe(self, collector_with_mocks):
+        """Test that return_as='dataframe' returns DataFrame."""
+        df = collector_with_mocks.get_game_review(steam_appid="12345", return_as="dataframe")
+
+        assert isinstance(df, pd.DataFrame)
+
+    def test_get_games_active_player_data_list_default(self, collector_with_mocks):
+        """Test that default behavior returns list."""
+        data = collector_with_mocks.get_games_active_player_data(steam_appids=["12345"])
+
+        assert isinstance(data, list)
+        assert not isinstance(data, tuple)
+
+    def test_get_game_review_list_default(self, collector_with_mocks):
+        """Test that default behavior returns list."""
+        data = collector_with_mocks.get_game_review(steam_appid="12345")
+
+        assert isinstance(data, list)
 
     def test_partial_source_failure_continues_collection(self, collector_with_one_failed_source):
         """Test that collector continues when one source fails.

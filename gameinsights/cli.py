@@ -236,8 +236,10 @@ def _run_collect(args: argparse.Namespace) -> int:
                 print("Active player mode requires the steamcharts source.", file=sys.stderr)
                 return 1
 
-            frame = collector.get_games_active_player_data(steam_appids, verbose=verbose)
-            _output_data(frame, args.format, args.output)  # type: ignore[arg-type]
+            records = collector.get_games_active_player_data(
+                steam_appids, verbose=verbose, return_as="list"
+            )
+            _output_data(records, args.format, args.output)  # type: ignore[arg-type]
             return 0
 
         records = collector.get_games_data(steam_appids, recap=args.recap, verbose=verbose)
