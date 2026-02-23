@@ -13,6 +13,41 @@ def _mock_hltb_token(monkeypatch):
     monkeypatch.setattr(HowLongToBeat, "_get_search_token", lambda *a, **kw: "mock_token")
 
 
+@pytest.fixture
+def reload_and_restore_metrics(monkeypatch):
+    """Reload metrics module with GAMEINSIGHTS_METRICS unset and restore on teardown.
+
+    This fixture ensures test isolation by:
+    1. Capturing the original metrics module state
+    2. Unsetting GAMEINSIGHTS_METRICS and reloading the module
+    3. Restoring the original module state after the test
+    """
+    import importlib
+    import sys
+
+    # Capture the original module if it exists
+    original_module = sys.modules.get("gameinsights.utils.metrics")
+
+    # Ensure metrics are disabled by unsetting the environment variable
+    monkeypatch.delenv("GAMEINSIGHTS_METRICS", raising=False)
+
+    # Force recreation of metrics module with disabled state
+    if "gameinsights.utils.metrics" in sys.modules:
+        importlib.reload(sys.modules["gameinsights.utils.metrics"])
+
+    yield
+
+    # Teardown: restore the original module state
+    if original_module is not None:
+        # Restore the original module
+        sys.modules["gameinsights.utils.metrics"] = original_module
+        # Also reload to ensure the module's internal state is restored
+        importlib.reload(original_module)
+    else:
+        # If there was no original module, remove the reloaded one
+        sys.modules.pop("gameinsights.utils.metrics", None)
+
+
 class TestCollectorMetrics:
     """Tests for _fetch_with_observability metrics emission."""
 
@@ -96,19 +131,9 @@ class TestCollectorMetrics:
         # Verify exception metrics were emitted
         assert mock_metrics["counter"].called
 
-    def test_metrics_disabled_when_none(self, monkeypatch, caplog):
+    def test_metrics_disabled_when_none(self, caplog, reload_and_restore_metrics):
         """Test that metrics are not emitted when GAMEINSIGHTS_METRICS is not set."""
-        import importlib
         import logging
-        import sys
-
-        # Ensure metrics are disabled by unsetting the environment variable
-        monkeypatch.delenv("GAMEINSIGHTS_METRICS", raising=False)
-
-        # Force recreation of metrics module with disabled state
-        # Need to reload the module, not the imported instance
-        if "gameinsights.utils.metrics" in sys.modules:
-            importlib.reload(sys.modules["gameinsights.utils.metrics"])
 
         from gameinsights import Collector
 

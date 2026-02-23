@@ -9,7 +9,7 @@ from gameinsights.model.game_data import GameDataModel
 
 
 def assert_game_data_values(
-    model: GameDataModel, expectations: dict[str, Any | Callable[[Any], bool | None]]
+    model: GameDataModel, expectations: dict[str, Any | Callable[[Any], bool]]
 ) -> None:
     """Assert model fields match expected values or pass callable validators.
 
