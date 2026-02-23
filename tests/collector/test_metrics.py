@@ -35,9 +35,7 @@ class TestCollectorMetrics:
         ):
             yield Collector()
 
-    def test_metrics_emitted_on_success(
-        self, collector_with_mocked_metrics, mock_metrics
-    ):
+    def test_metrics_emitted_on_success(self, collector_with_mocked_metrics, mock_metrics):
         """Test that metrics are emitted on successful fetch."""
         # Mock a successful source fetch
         with patch.object(
@@ -59,9 +57,7 @@ class TestCollectorMetrics:
         assert mock_metrics["counter"].called
         assert mock_metrics["timer"].called
 
-    def test_metrics_emitted_on_failure(
-        self, collector_with_mocked_metrics, mock_metrics
-    ):
+    def test_metrics_emitted_on_failure(self, collector_with_mocked_metrics, mock_metrics):
         """Test that metrics are emitted on failed fetch."""
         # Mock a failed source fetch
         with patch.object(
@@ -79,9 +75,7 @@ class TestCollectorMetrics:
         # Verify failure metrics were emitted
         assert mock_metrics["counter"].called
 
-    def test_metrics_with_exception(
-        self, collector_with_mocked_metrics, mock_metrics
-    ):
+    def test_metrics_with_exception(self, collector_with_mocked_metrics, mock_metrics):
         """Test metrics emission when source raises an exception."""
         # Mock a source that raises an exception
         with patch.object(

@@ -25,11 +25,13 @@ def common_not_found_response():
         A function that accepts an appid and returns a formatted error dict.
         Call as common_not_found_response() or common_not_found_response(appid="12345").
     """
+
     def _make_response(appid: str = "unknown") -> dict:
         return {
             "success": False,
             "error": f"Game with appid {appid} is not found.",
         }
+
     return _make_response
 
 

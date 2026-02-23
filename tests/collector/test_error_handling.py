@@ -54,9 +54,7 @@ class TestCollectorErrorHandling:
         # Result should be successful because primary source (SteamStore) succeeded
         assert_fetch_result(results[0], "12345", success=True)
 
-    def test_raise_on_error_with_primary_source_failure(
-        self, mock_request_response, monkeypatch
-    ):
+    def test_raise_on_error_with_primary_source_failure(self, mock_request_response, monkeypatch):
         """Test that raise_on_error=True raises GameNotFoundError when primary source fails."""
         from gameinsights import Collector, GameNotFoundError
         from gameinsights.sources import HowLongToBeat, SteamStore

@@ -1,12 +1,10 @@
 """Tests for Collector DataFrame conversion functionality."""
 
 import pytest
+from tests.conftest import assert_fetch_result, assert_list_not_tuple
 
 # Skip all tests in this module if pandas is not installed
 pd = pytest.importorskip("pandas")
-
-# Import helper functions from conftest
-from tests.conftest import assert_fetch_result, assert_list_not_tuple
 
 
 class TestCollectorDataFrame:
