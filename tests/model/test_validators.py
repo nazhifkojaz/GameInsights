@@ -141,10 +141,10 @@ class TestComputedPropertiesWithNone:
 
     def test_compute_days_since_release_with_future_date(self):
         """Test that future dates produce negative days_since_release."""
-        future_date = datetime.datetime.now() + datetime.timedelta(days=30)
+        future_date = datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(days=30)
         model = GameDataModel(
             steam_appid="test",
-            release_date=future_date,
+            release_date=future_date.replace(tzinfo=None),
         )
 
         # days_since_release should be negative for future dates

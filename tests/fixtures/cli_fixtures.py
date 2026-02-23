@@ -77,8 +77,14 @@ class DummyCollector:
             }
         ]
         if include_failures:
-            failures = [FetchResult(identifier="12345", success=True, data=data[0])]
-            return data, failures
+            results = [FetchResult(identifier="12345", success=True, data=data[0])]
+            return data, results
+
+        if return_as == "dataframe":
+            import pandas as pd
+
+            return pd.DataFrame(data)
+
         return data
 
     def close(self) -> None:

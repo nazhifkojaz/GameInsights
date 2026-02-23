@@ -1,6 +1,6 @@
 import math
 from datetime import datetime
-from typing import Any
+from typing import Any, ClassVar
 
 from pydantic import BaseModel, Field, field_validator, model_validator
 from typing_extensions import Self
@@ -237,7 +237,7 @@ class GameDataModel(BaseModel):
         if self.release_date:
             self.days_since_release = (datetime.now() - self.release_date).days
 
-    _RECAP_FIELDS: set[str] = {
+    _RECAP_FIELDS: ClassVar[set[str]] = {
         "steam_appid",
         "name",
         "developers",

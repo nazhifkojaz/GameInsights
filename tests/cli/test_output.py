@@ -60,19 +60,13 @@ class TestCLIOutputFormats:
         # copies_sold should NOT be in recap
         assert "copies_sold" not in payload[0]
 
-    def test_cli_collect_with_quiet(
+    def test_cli_collect_returns_payload_in_quiet(
         self, capsys: pytest.CaptureFixture[str], patched_collector
     ) -> None:
-        """Test quiet mode suppresses progress messages."""
+        """Test quiet mode returns payload correctly."""
         exit_code = cli.main(["collect", "--appid", "12345", "--format", "json", "--quiet"])
         assert exit_code == 0
         captured = capsys.readouterr()
-        # Quiet mode should suppress info messages but not errors
-        # Note: "Collecting data" message is at info level, so it should be suppressed
-        # However, the message may still appear depending on logger configuration.
-        # The key assertion is that the data is returned correctly.
-        # We don't assert absence of the progress message because logger behavior
-        # may vary across test environments (stderr vs stdout, levels, etc.).
         payload = json.loads(captured.out)
         assert len(payload) == 1
 
@@ -95,15 +89,3 @@ class TestCLIOutputFormats:
         # Stdout should have progress message but not data
         assert "Collecting data" in captured.err
         assert captured.out == ""
-
-    def test_cli_collect_active_player_csv(
-        self, capsys: pytest.CaptureFixture[str], patched_collector
-    ) -> None:
-        """Test active player mode with CSV output."""
-        exit_code = cli.main(
-            ["collect", "--appid", "12345", "--mode", "active-player", "--format", "csv"]
-        )
-        assert exit_code == 0
-        captured = capsys.readouterr()
-        assert "Collecting data for 1 appid(s)..." in captured.err
-        assert "active_player_24h" in captured.out

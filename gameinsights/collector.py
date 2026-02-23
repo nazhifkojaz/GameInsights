@@ -508,8 +508,8 @@ class Collector:
                 When False (default), errors are silently absorbed into FetchResult.
 
         Returns:
-            List of games recap data (when include_failures=False).
-            Tuple of successful data and all results (when include_failures=True).
+            List of games recap data (when include_failures=False and raise_on_error=False).
+            Tuple of successful data and all results (when include_failures=True and raise_on_error=False).
 
         Raises:
             GameNotFoundError: If raise_on_error=True and SteamStore reports game doesn't exist
@@ -523,6 +523,9 @@ class Collector:
             - Input validation (non-empty steam_appids) is only enforced when raise_on_error=True.
               When raise_on_error=False, invalid/empty steam_appids will silently return an empty
               result (or ([], []) when include_failures=True).
+            - When raise_on_error=True, exceptions from the primary source are propagated and
+              the function does not return a (data, results) tuple even if include_failures=True.
+              The raise_on_error parameter takes precedence over include_failures.
         """
         # Add input validation for raise_on_error mode
         if raise_on_error and not steam_appids:
