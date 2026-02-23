@@ -1,5 +1,7 @@
 from typing import Any
 
+import requests
+
 from gameinsights.sources.base import BaseSource, SourceResult, SuccessResult
 from gameinsights.utils.ratelimit import logged_rate_limited
 
@@ -38,12 +40,16 @@ class Gamalytic(BaseSource):
     _valid_labels_set: frozenset[str] = frozenset(_GAMALYTICS_LABELS)
     _base_url = "https://api.gamalytic.com/game"
 
-    def __init__(self, api_key: str | None = None) -> None:
-        """Initialize the Gamalytic with an optional API key.
+    def __init__(
+        self, api_key: str | None = None, session: requests.Session | None = None
+    ) -> None:
+        """Initialize the Gamalytic source with an optional API key.
+
         Args:
-            api_key (str): Optional API key for Gamalytic API.
+            api_key: Optional API key for Gamalytic API.
+            session: Optional requests.Session for connection pooling.
         """
-        super().__init__()
+        super().__init__(session=session)
         self._api_key = api_key
 
     @property

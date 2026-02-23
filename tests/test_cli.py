@@ -33,6 +33,7 @@ class _DummyCollector:
                 "copies_sold": 1000,
             }
         ]
+        self._closed = False  # Track closed state for behavioral parity with Collector
 
     @property
     def id_based_sources(self) -> list[SourceConfig]:
@@ -55,6 +56,37 @@ class _DummyCollector:
             "active_player_24h": [111],
         }
         return pd.DataFrame(data)
+
+    def close(self) -> None:
+        """Close the owned session.
+
+        Mimics Collector.close() for behavioral parity.
+        Since _DummyCollector has no real session, this only
+        tracks the closed state for idempotent close behavior.
+        """
+        if not self._closed:
+            self._closed = True
+
+    def __enter__(self) -> "_DummyCollector":
+        """Enter the context manager.
+
+        Mimics Collector.__enter__ by returning self.
+        """
+        return self
+
+    def __exit__(self, *args: object) -> None:
+        """Exit the context manager and close the session.
+
+        Mimics Collector.__exit__ by calling close().
+        The *args capture exception info (exc_type, exc_value, traceback)
+        but are unused, matching the real implementation.
+        """
+        try:
+            self.close()
+        except Exception:
+            # Real Collector logs but doesn't suppress exceptions.
+            # We pass here to maintain that behavior.
+            pass
 
 
 @pytest.fixture(autouse=True)
@@ -114,3 +146,26 @@ def test_cli_missing_appids(capsys: pytest.CaptureFixture[str]) -> None:
     assert exit_code == 1
     stderr = capsys.readouterr().err
     assert "No appids supplied" in stderr
+
+
+def test_cli_collector_context_manager_called(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Verify that the Collector is properly used as a context manager.
+
+    This test ensures that when the CLI uses ``with Collector(...) as collector:``,
+    the ``__exit__`` method is actually invoked, which is critical for proper
+    session cleanup in the real implementation.
+    """
+    exit_tracker = {"called": False}
+
+    class ExitTrackingDummyCollector(_DummyCollector):
+        def __exit__(self, *args: object) -> None:
+            exit_tracker["called"] = True
+            super().__exit__(*args)
+
+    monkeypatch.setattr(cli, "Collector", ExitTrackingDummyCollector)
+
+    exit_code = cli.main(["collect", "--appid", "12345", "--format", "json"])
+    assert exit_code == 0
+    assert exit_tracker[
+        "called"
+    ], "Collector.__exit__ should be invoked when using context manager"

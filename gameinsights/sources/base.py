@@ -1,4 +1,5 @@
 import time
+import warnings
 from abc import ABC, abstractmethod
 from typing import Any, Literal, TypedDict
 from urllib.parse import urljoin
@@ -36,11 +37,19 @@ SYNTHETIC_ERROR_CODE = 599
 
 class BaseSource(ABC):
     _base_url: str | None = None
-    _session: requests.Session | None = None
 
-    def __init__(self) -> None:
-        """Initialize the base class for all its children."""
+    def __init__(self, session: requests.Session | None = None) -> None:
+        """Initialize the base class for all its children.
+
+        Args:
+            session: An existing requests.Session to reuse. When None (the
+                     default), a new session is created lazily on first access
+                     via the ``session`` property. Passing a shared session
+                     enables connection pooling across multiple source instances
+                     owned by the same Collector.
+        """
         self._logger = LoggerWrapper(self.__class__.__name__)
+        self._session = session
 
     @property
     def logger(self) -> "LoggerWrapper":
@@ -48,32 +57,35 @@ class BaseSource(ABC):
 
     @property
     def session(self) -> requests.Session:
-        """Get or create a shared session with connection pooling.
+        """Get or create a session with connection pooling.
 
-        The session is shared across all BaseSource instances to maximize
-        connection reuse. Connection pooling reduces TCP/TLS handshake
-        overhead for subsequent requests.
+        If a session was injected via the constructor, it is returned directly.
+        Otherwise a new session is created lazily and cached on this instance,
+        enabling standalone use of any source outside a Collector.
         """
-        if BaseSource._session is None:
-            BaseSource._session = requests.Session()
+        if self._session is None:
+            self._session = requests.Session()
             adapter = HTTPAdapter(
                 pool_connections=10,  # Number of connection pools to cache
                 pool_maxsize=20,  # Maximum number of connections per pool
             )
-            BaseSource._session.mount("https://", adapter)
-            BaseSource._session.mount("http://", adapter)
-        return BaseSource._session
+            self._session.mount("https://", adapter)
+            self._session.mount("http://", adapter)
+        return self._session
 
-    @classmethod
-    def close_session(cls) -> None:
-        """Close the shared session and release resources.
+    @staticmethod
+    def close_session() -> None:
+        """Deprecated. Session lifecycle is now managed by Collector.
 
-        This should be called when done making requests to properly
-        close connections and release resources.
+        This method is a no-op. Use ``Collector.close()`` or the
+        Collector as a context manager instead.
         """
-        if cls._session is not None:
-            cls._session.close()
-            cls._session = None
+        warnings.warn(
+            "BaseSource.close_session() is deprecated and has no effect. "
+            "Use Collector.close() or the Collector context manager instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
 
     @property
     @abstractmethod

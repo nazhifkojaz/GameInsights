@@ -19,7 +19,7 @@ class TestBaseSource:
             def _transform_data(self, data):
                 pass
 
-        return _TestSource()
+        return _TestSource(session=requests.Session())
 
     @pytest.mark.parametrize(
         "selected_labels, valid_labels, expected",
@@ -177,15 +177,7 @@ class TestBaseSource:
 
 
 class TestConnectionPooling:
-    """Tests for session connection pooling functionality."""
-
-    def setup_method(self):
-        """Reset session before each test."""
-        BaseSource.close_session()
-
-    def teardown_method(self):
-        """Clean up session after each test."""
-        BaseSource.close_session()
+    """Tests for session lifecycle management with per-Collector ownership."""
 
     @pytest.fixture
     def test_source_class(self):
@@ -204,91 +196,109 @@ class TestConnectionPooling:
 
         return _TestSource
 
-    def test_session_created_on_first_access(self, test_source_class):
-        """Test that a session is created when first accessed."""
-        # Ensure session is None initially
-        assert BaseSource._session is None
-
+    def test_lazy_session_created_when_not_injected(self, test_source_class):
+        """A source with no injected session creates one lazily on first access."""
         source = test_source_class()
-        session = source.session
+        assert source._session is None
 
+        session = source.session  # triggers lazy creation
         assert session is not None
         assert isinstance(session, requests.Session)
+        assert source._session is session
+        session.close()
 
-    def test_session_reused_across_sources(self, test_source_class):
-        """Test that the same session is reused across different source instances."""
+    def test_injected_session_returned_directly(self, test_source_class):
+        """An injected session is returned without creating a new one."""
+        shared = requests.Session()
+        source = test_source_class(session=shared)
+        assert source.session is shared
+        shared.close()
+
+    def test_injected_session_shared_across_sources(self, test_source_class):
+        """Two sources sharing an injected session return the same object."""
+        shared = requests.Session()
+        source1 = test_source_class(session=shared)
+        source2 = test_source_class(session=shared)
+        assert source1.session is source2.session
+        shared.close()
+
+    def test_standalone_sources_get_independent_sessions(self, test_source_class):
+        """Two standalone sources (no injection) get different sessions."""
         source1 = test_source_class()
         source2 = test_source_class()
-
-        session1 = source1.session
-        session2 = source2.session
-
-        assert session1 is session2
-        assert id(session1) == id(session2)
+        assert source1.session is not source2.session
+        source1.session.close()
+        source2.session.close()
 
     def test_session_has_connection_pooling_configured(self, test_source_class):
-        """Test that the session is configured with connection pooling."""
+        """A lazily-created session has the correct pool settings."""
         source = test_source_class()
         session = source.session
 
-        # Check that HTTPAdapter is mounted for both http and https
         https_adapter = session.get_adapter("https://example.com")
         http_adapter = session.get_adapter("http://example.com")
-
-        assert https_adapter is not None
-        assert http_adapter is not None
 
         from requests.adapters import HTTPAdapter
 
         assert isinstance(https_adapter, HTTPAdapter)
         assert isinstance(http_adapter, HTTPAdapter)
-
-        # Verify pool configuration
         assert https_adapter._pool_connections == 10
         assert https_adapter._pool_maxsize == 20
+        session.close()
 
-    def test_close_session_closes_and_resets_session(self, test_source_class):
-        """Test that close_session properly closes and resets the session."""
-        source = test_source_class()
-        session1 = source.session
+    def test_close_session_classmethod_is_deprecated_noop(self):
+        """BaseSource.close_session() emits DeprecationWarning and does nothing."""
+        import warnings
 
-        # Close the session
-        BaseSource.close_session()
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            BaseSource.close_session()
 
-        # Verify session is reset
-        assert BaseSource._session is None
+        assert len(caught) == 1
+        assert issubclass(caught[0].category, DeprecationWarning)
+        assert "close_session" in str(caught[0].message)
 
-        # New source should create a new session
-        session2 = source.session
-        assert session1 is not session2
-
-    def test_collector_context_manager(self):
-        """Test that Collector works as a context manager."""
+    def test_two_collectors_have_independent_sessions(self):
+        """Each Collector gets its own session — no shared singleton."""
         from gameinsights import Collector
 
-        # Ensure clean state
-        BaseSource.close_session()
+        c1 = Collector()
+        c2 = Collector()
+        try:
+            assert c1._session is not c2._session
+            assert c1.steamstore._session is c1._session
+            assert c2.steamstore._session is c2._session
+        finally:
+            c1.close()
+            c2.close()
+
+    def test_collector_context_manager_closes_session(self):
+        """Collector.__exit__ closes the owned session."""
+        from gameinsights import Collector
 
         with Collector() as collector:
-            assert collector is not None
-            # Session is created lazily when first accessed via a source
-            _ = collector.steamstore.session
-            assert BaseSource._session is not None
+            session = collector._session
+            assert isinstance(session, requests.Session)
+        # close() is idempotent
+        collector._session.close()
 
-        # Session should be closed after exiting context
-        assert BaseSource._session is None
-
-    def test_collector_close_method(self):
-        """Test that Collector.close() properly closes the session."""
+    def test_collector_close_is_idempotent(self):
+        """Calling close() twice does not raise."""
         from gameinsights import Collector
 
-        # Ensure clean state
-        BaseSource.close_session()
-
         collector = Collector()
-        # Session is created lazily when first accessed via a source
-        _ = collector.steamstore.session
-        assert BaseSource._session is not None
-
         collector.close()
-        assert BaseSource._session is None
+        collector.close()  # must not raise
+
+    def test_create_session_configures_pool(self):
+        """Collector._create_session() returns a session with correct adapters."""
+        from requests.adapters import HTTPAdapter
+
+        from gameinsights import Collector
+
+        session = Collector._create_session()
+        adapter = session.get_adapter("https://example.com")
+        assert isinstance(adapter, HTTPAdapter)
+        assert adapter._pool_connections == 10
+        assert adapter._pool_maxsize == 20
+        session.close()
