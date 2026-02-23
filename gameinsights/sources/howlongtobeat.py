@@ -23,8 +23,6 @@ import requests
 from gameinsights.sources.base import SYNTHETIC_ERROR_CODE, BaseSource, SourceResult, SuccessResult
 from gameinsights.utils.ratelimit import logged_rate_limited
 
-import requests
-
 _HOWLONGTOBEAT_LABELS = (
     "game_id",
     "game_name",

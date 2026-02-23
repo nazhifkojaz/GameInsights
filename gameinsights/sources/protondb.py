@@ -10,10 +10,10 @@
 
 from typing import Any
 
+import requests
+
 from gameinsights.sources.base import BaseSource, SourceResult, SuccessResult
 from gameinsights.utils.ratelimit import logged_rate_limited
-
-import requests
 
 _PROTONDB_LABELS = (
     "protondb_tier",
