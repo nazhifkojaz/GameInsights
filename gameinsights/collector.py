@@ -286,10 +286,11 @@ class Collector:
         """
         lowered = error_message.lower()
 
-        # Pattern 1: SteamStore-specific "not available" message
-        # This is the primary source's "game doesn't exist" message
-        if "not available in the specified region" in lowered or "not available" in lowered:
-            # Extract appid from message like "Failed to fetch data for appid 12345..."
+        # Pattern 1: SteamStore-specific "not available in the specified region" message
+        # This is the primary source's "game doesn't exist" message.
+        # Only match the specific SteamStore phrasing to avoid false positives
+        # from transient errors like "service not available".
+        if "not available in the specified region" in lowered:
             match = re.search(r"appid\s+(\S+)", lowered)
             appid_hint = match.group(1).rstrip(".,") if match else "unknown"
             return GameNotFoundError(appid=appid_hint, message=error_message)
@@ -316,7 +317,8 @@ class Collector:
             return SourceUnavailableError(source=source_name, reason=error_message)
 
         # Pattern 5: HTTP error status codes -> SourceUnavailableError
-        if re.search(r"status code:\s*[45]\d{2}", lowered):
+        # Matches both "status code: 503" and "status 503" formats
+        if re.search(r"status(?:\s+code)?:?\s*[45]\d{2}", lowered):
             return SourceUnavailableError(source=source_name, reason=error_message)
 
         # Pattern 6: Generic "not found" with appid/steamid extraction
@@ -441,7 +443,7 @@ class Collector:
             list[dict[str, Any]] | pd.DataFrame: User data. Returns list if return_as="list", DataFrame if return_as="dataframe".
 
         Raises:
-            ImportError: If return_as="dataframe" and pandas is not installed. Install with: pip install gameinsights[dataframe]
+            DependencyNotInstalledError: If return_as="dataframe" and pandas is not installed. Install with: pip install gameinsights[dataframe]
         """
         steamid_list = (
             [steamids] if isinstance(steamids, str) or isinstance(steamids, int) else steamids

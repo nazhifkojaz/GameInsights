@@ -169,8 +169,12 @@ class GameDataModel(BaseModel):
         except (ValueError, TypeError):
             return None
 
+    @field_validator("steam_appid", mode="before")
+    def ensure_string(cls, v: str | None) -> str:
+        """Coerce to string; None becomes empty string for required fields."""
+        return "" if v is None else str(v)
+
     @field_validator(
-        "steam_appid",
         "name",
         "type",
         "protondb_tier",
@@ -178,9 +182,11 @@ class GameDataModel(BaseModel):
         "protondb_confidence",
         mode="before",
     )
-    def ensure_string(cls, v: str | None) -> str:
-        """convert x types to string"""
-        return "" if v is None else str(v)
+    def ensure_optional_string(cls, v: str | int | None) -> str | None:
+        """Coerce to string or preserve None for nullable fields."""
+        if v is None:
+            return None
+        return str(v)
 
     @field_validator(
         "developers",
@@ -223,7 +229,7 @@ class GameDataModel(BaseModel):
         if self.release_date:
             self.days_since_release = (datetime.now() - self.release_date).days
 
-    _RECAP_FIELDS = {
+    _RECAP_FIELDS: set[str] = {
         "steam_appid",
         "name",
         "developers",
