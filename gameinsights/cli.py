@@ -207,50 +207,49 @@ def _run_collect(args: argparse.Namespace) -> int:
     total = len(steam_appids)
     print(f"Collecting data for {total} appid(s)...", file=sys.stderr)
 
-    collector = Collector(
+    with Collector(
         region=args.region,
         language=args.language,
         steam_api_key=args.steam_api_key or None,
         gamalytic_api_key=args.gamalytic_api_key or None,
         calls=args.calls,
         period=args.period,
-    )
+    ) as collector:
+        verbose = not args.quiet
 
-    verbose = not args.quiet
+        selected_sources = {item.lower() for item in args.source}
+        id_index = _build_source_index(collector.id_based_sources)
+        name_index = _build_source_index(collector.name_based_sources)
+        available_sources = set(id_index.keys()) | set(name_index.keys())
 
-    selected_sources = {item.lower() for item in args.source}
-    id_index = _build_source_index(collector.id_based_sources)
-    name_index = _build_source_index(collector.name_based_sources)
-    available_sources = set(id_index.keys()) | set(name_index.keys())
+        if selected_sources:
+            unknown = selected_sources - available_sources
+            if unknown:
+                print(
+                    f"Unknown sources requested: {', '.join(sorted(unknown))}",
+                    file=sys.stderr,
+                )
+                return 1
 
-    if selected_sources:
-        unknown = selected_sources - available_sources
-        if unknown:
-            print(
-                f"Unknown sources requested: {', '.join(sorted(unknown))}",
-                file=sys.stderr,
-            )
-            return 1
+        if args.mode == "active-player":
+            if selected_sources and "steamcharts" not in selected_sources:
+                print("Active player mode requires the steamcharts source.", file=sys.stderr)
+                return 1
 
-    if args.mode == "active-player":
-        if selected_sources and "steamcharts" not in selected_sources:
-            print("Active player mode requires the steamcharts source.", file=sys.stderr)
-            return 1
+            frame = collector.get_games_active_player_data(steam_appids, verbose=verbose)
+            _output_data(frame, args.format, args.output)  # type: ignore[arg-type]
+            return 0
 
-        frame = collector.get_games_active_player_data(steam_appids, verbose=verbose)
-        _output_data(frame, args.format, args.output)  # type: ignore[arg-type]
+        records = collector.get_games_data(steam_appids, recap=args.recap, verbose=verbose)
+        if selected_sources:
+            allowed_fields: set[str] = {"steam_appid"}
+            for entry in selected_sources:
+                allowed_fields.update(id_index.get(entry, set()))
+                allowed_fields.update(name_index.get(entry, set()))
+            records = _filter_records(records, allowed_fields)  # type: ignore[arg-type]
+
+        _output_data(records, args.format, args.output)  # type: ignore[arg-type]
         return 0
-
-    records = collector.get_games_data(steam_appids, recap=args.recap, verbose=verbose)
-    if selected_sources:
-        allowed_fields: set[str] = {"steam_appid"}
-        for entry in selected_sources:
-            allowed_fields.update(id_index.get(entry, set()))
-            allowed_fields.update(name_index.get(entry, set()))
-        records = _filter_records(records, allowed_fields)  # type: ignore[arg-type]
-
-    _output_data(records, args.format, args.output)  # type: ignore[arg-type]
-    return 0
 
 
 def main(argv: list[str] | None = None) -> int:

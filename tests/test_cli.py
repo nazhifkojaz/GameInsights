@@ -56,6 +56,12 @@ class _DummyCollector:
         }
         return pd.DataFrame(data)
 
+    def __enter__(self) -> "_DummyCollector":
+        return self
+
+    def __exit__(self, *args: object) -> None:
+        pass
+
 
 @pytest.fixture(autouse=True)
 def patched_collector(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
