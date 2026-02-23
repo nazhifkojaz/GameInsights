@@ -1,6 +1,7 @@
 """Tests for GameDataModel validators with edge cases."""
 
 import datetime
+import json
 
 from gameinsights.model.game_data import GameDataModel
 
@@ -64,28 +65,6 @@ class TestValidatorsEdgeCases:
 
         assert model.developers == ["Single Developer"]
         assert model.publishers == ["Single Publisher"]
-
-    def test_handle_float_with_nan_converts_to_none(self):
-        """Test that NaN values are converted to None."""
-        model = GameDataModel(
-            steam_appid="test",
-            price_final=float("nan"),
-            average_playtime_h=float("nan"),
-        )
-
-        assert model.price_final is None
-        assert model.average_playtime_h is None
-
-    def test_handle_float_with_inf_converts_to_none(self):
-        """Test that inf values are converted to None."""
-        model = GameDataModel(
-            steam_appid="test",
-            price_initial=float("inf"),
-            average_playtime_h=float("-inf"),
-        )
-
-        assert model.price_initial is None
-        assert model.average_playtime_h is None
 
     def test_parse_release_date_with_invalid_string(self):
         """Test that invalid date strings are handled gracefully."""
@@ -193,7 +172,5 @@ class TestJSONSerializationEdgeCases:
         assert json_dict["price_final"] is None
 
         # Should be JSON serializable
-        import json
-
         json_str = json.dumps(json_dict)
         assert '"price_final": null' in json_str

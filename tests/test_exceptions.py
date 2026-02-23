@@ -15,6 +15,13 @@ TestCollectorErrorClassification = _collector_error.TestCollectorErrorClassifica
 TestRaiseForFetchFailure = _collector_error.TestRaiseForFetchFailure
 TestRaiseOnErrorParameter = _collector_error.TestRaiseOnErrorParameter
 
+# Mark re-exported classes to prevent pytest from collecting them as duplicates
+TestExceptionHierarchy.__test__ = False
+TestDependencyNotInstalledError.__test__ = False
+TestCollectorErrorClassification.__test__ = False
+TestRaiseForFetchFailure.__test__ = False
+TestRaiseOnErrorParameter.__test__ = False
+
 __all__ = [
     "TestExceptionHierarchy",
     "TestCollectorErrorClassification",

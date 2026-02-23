@@ -22,19 +22,19 @@ class TestCollectorErrorClassification:
                 "SteamStore",
                 "Failed to fetch data for appid 12345, or appid is not available in the specified region (us) or language (english).",
                 GameNotFoundError,
-                {"appid": "12345"},
+                {"identifier": "12345"},
             ),
             (
                 "Gamalytic",
                 "Game with appid 12345 is not found.",
                 GameNotFoundError,
-                {"appid": "12345"},
+                {"identifier": "12345"},
             ),
             (
                 "SteamUser",
                 "steamid 76561198000000000 not found.",
                 GameNotFoundError,
-                {"appid": "76561198000000000"},
+                {"identifier": "76561198000000000"},
             ),
             (
                 "SteamStore",
@@ -76,7 +76,7 @@ class TestCollectorErrorClassification:
                 "SteamStore",
                 "Game with APPID 12345 NOT FOUND.",
                 GameNotFoundError,
-                {"appid": "12345"},
+                {"identifier": "12345"},
             ),
         ],
         ids=[
@@ -116,7 +116,7 @@ class TestRaiseForFetchFailure:
                 error_message="Game with appid 12345 is not found.",
                 is_primary=True,
             )
-        assert exc_info.value.appid == "12345"
+        assert exc_info.value.identifier == "12345"
 
     def test_supplementary_source_not_found_raises_source_unavailable(self):
         """Test supplementary source 'not found' raises SourceUnavailableError."""

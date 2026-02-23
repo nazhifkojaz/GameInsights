@@ -76,6 +76,9 @@ class DummyCollector:
                 "active_player_24h": 111,
             }
         ]
+        if include_failures:
+            failures = [FetchResult(identifier="12345", success=True, data=data[0])]
+            return data, failures
         return data
 
     def close(self) -> None:

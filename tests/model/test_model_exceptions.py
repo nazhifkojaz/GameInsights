@@ -15,8 +15,10 @@ class TestExceptionHierarchy:
     """Test exception class definitions and attributes."""
 
     def test_game_not_found_error_attributes(self):
-        """Test GameNotFoundError stores appid and has message."""
-        exc = GameNotFoundError(appid="12345")
+        """Test GameNotFoundError stores identifier and has message."""
+        exc = GameNotFoundError(identifier="12345")
+        assert exc.identifier == "12345"
+        # Test backward compatibility alias
         assert exc.appid == "12345"
         assert "12345" in str(exc)
         assert "not found" in str(exc).lower()
@@ -24,8 +26,10 @@ class TestExceptionHierarchy:
     def test_game_not_found_error_custom_message(self):
         """Test GameNotFoundError accepts custom message."""
         custom_msg = "Custom error message"
-        exc = GameNotFoundError(appid="12345", message=custom_msg)
+        exc = GameNotFoundError(identifier="12345", message=custom_msg)
         assert str(exc) == custom_msg
+        assert exc.identifier == "12345"
+        # Test backward compatibility alias
         assert exc.appid == "12345"
 
     def test_source_unavailable_error_attributes(self):

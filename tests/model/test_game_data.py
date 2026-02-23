@@ -9,21 +9,29 @@ from gameinsights.model.game_data import GameDataModel
 
 
 def assert_game_data_values(
-    model: GameDataModel, expectations: dict[str, Any | Callable[[Any], None]]
+    model: GameDataModel, expectations: dict[str, Any | Callable[[Any], bool | None]]
 ) -> None:
     """Assert model fields match expected values or pass callable validators.
 
     Args:
         model: The GameDataModel instance to validate
         expectations: Dict mapping field names to either expected values or
-            callable validators that receive the field value
+            callable validators that receive the field value and must return bool
+
+    Note:
+        Callable validators must return bool. Returning None will be treated as False
+        and will fail the assertion with a clear message.
     """
     for field, expected in expectations.items():
         value = getattr(model, field)
         if callable(expected):
             outcome = expected(value)
-            if outcome is not None:
-                assert outcome, f"Expectation for {field} did not hold"
+            # Require validators to return bool explicitly
+            if not isinstance(outcome, bool):
+                raise AssertionError(
+                    f"Validator for {field} must return bool, got {type(outcome).__name__}"
+                )
+            assert outcome, f"Expectation for {field} did not hold (value: {value})"
         else:
             assert value == expected, f"Expected {field} to be {expected}, got {value}"
 

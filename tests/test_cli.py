@@ -14,29 +14,6 @@ from gameinsights import cli
 def patched_collector(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
     monkeypatch.setattr(cli, "Collector", DummyCollector)
     yield
-    monkeypatch.undo()
-
-
-def test_cli_collect_games_json(capsys: pytest.CaptureFixture[str]) -> None:
-    exit_code = cli.main(["collect", "--appid", "12345", "--format", "json"])
-    assert exit_code == 0
-    captured = capsys.readouterr()
-    assert "Collecting data for 1 appid(s)..." in captured.err
-    payload = json.loads(captured.out)
-    assert payload[0]["steam_appid"] == "12345"
-    assert payload[0]["name"] == "Mock Game"
-
-
-def test_cli_collect_games_csv(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
-    output_path = tmp_path / "output.csv"
-    exit_code = cli.main(
-        ["collect", "--appid", "12345", "--format", "csv", "--output", str(output_path)]
-    )
-    assert exit_code == 0
-    captured = capsys.readouterr()
-    assert output_path.read_text(encoding="utf-8").startswith("steam_appid")
-    assert "Collecting data for 1 appid(s)..." in captured.err
-    assert captured.out == ""
 
 
 def test_cli_collect_games_with_source_filter(capsys: pytest.CaptureFixture[str]) -> None:

@@ -26,15 +26,24 @@ class GameInsightsError(Exception):
 
 
 class GameNotFoundError(GameInsightsError):
-    """The game does not exist for the given Steam appid.
+    """The game does not exist for the given identifier.
 
-    Raised only when the primary source (SteamStore) confirms the appid
+    Raised only when the primary source (SteamStore) confirms the identifier
     is absent or unavailable in the requested region/language.
+
+    Attributes:
+        identifier: The Steam appid or steamid that was not found.
     """
 
-    def __init__(self, appid: str, message: str | None = None) -> None:
-        self.appid = appid
-        super().__init__(message or f"Game with appid '{appid}' was not found.")
+    def __init__(self, identifier: str, message: str | None = None) -> None:
+        self.identifier = identifier
+        super().__init__(message or f"Game with identifier '{identifier}' was not found.")
+
+    # Backward compatibility: provide appid as an alias
+    @property
+    def appid(self) -> str:
+        """Alias for identifier for backward compatibility."""
+        return self.identifier
 
 
 class SourceUnavailableError(GameInsightsError):
@@ -56,9 +65,6 @@ class InvalidRequestError(GameInsightsError):
     Examples: empty appid string, unsupported parameter value.
     Replaces the bare ValueError previously raised by get_game_review().
     """
-
-    def __init__(self, message: str) -> None:
-        super().__init__(message)
 
 
 class DependencyNotInstalledError(GameInsightsError):

@@ -24,6 +24,21 @@ from tests.collector.test_user_data import TestGetUserData
 # Re-export for backward compatibility
 TestCollector = TestCollectorFetching
 
+# Mark re-exported classes to prevent pytest from collecting them as duplicates
+TestCollectorDataFrame.__test__ = False
+TestCollectorErrorClassification.__test__ = False
+TestRaiseForFetchFailure.__test__ = False
+TestRaiseOnErrorParameter.__test__ = False
+TestCollectorErrorHandling.__test__ = False
+TestCollectorFailureReporting.__test__ = False
+TestCollectorFetching.__test__ = False
+TestCollectorMetrics.__test__ = False
+TestMultiAppidScenarios.__test__ = False
+TestCollectorProperties.__test__ = False
+TestCollectorConfiguration.__test__ = False
+TestGetUserData.__test__ = False
+TestCollector.__test__ = False
+
 __all__ = [
     "TestCollector",
     "TestCollectorFetching",

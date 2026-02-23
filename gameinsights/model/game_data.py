@@ -7,7 +7,15 @@ from typing_extensions import Self
 
 
 class GameDataModel(BaseModel):
-    """Complete game data model with Python 3.10+ type hints and Pydantic v2 validation"""
+    """Complete game data model with Python 3.10+ type hints and Pydantic v2 validation.
+
+    Note on steam_appid coercion:
+        The ensure_string validator (field_validator for steam_appid, mode="before")
+        coerces None values to an empty string (""). This means GameDataModel can be
+        instantiated with steam_appid=None or steam_appid="" and both will result in
+        steam_appid=="". An empty value indicates missing/invalid data, and callers
+        must validate steam_appid (as the Collector does) before using the instance.
+    """
 
     # Required field
     steam_appid: str

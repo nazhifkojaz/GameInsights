@@ -46,6 +46,7 @@ class FetchResult:
 class SourceConfig(NamedTuple):
     source: sources.BaseSource
     fields: list[str]
+    is_primary: bool = False
 
 
 class Collector:
@@ -179,6 +180,7 @@ class Collector:
                     "is_coming_soon",
                     "recommendations",
                 ],
+                is_primary=True,  # SteamStore is the primary source
             ),
             SourceConfig(
                 self.gamalytic,
@@ -292,8 +294,8 @@ class Collector:
         # from transient errors like "service not available".
         if "not available in the specified region" in lowered:
             match = re.search(r"appid\s+(\S+)", lowered)
-            appid_hint = match.group(1).rstrip(".,") if match else "unknown"
-            return GameNotFoundError(appid=appid_hint, message=error_message)
+            identifier_hint = match.group(1).rstrip(".,") if match else "unknown"
+            return GameNotFoundError(identifier=identifier_hint, message=error_message)
 
         # Pattern 2: Parse errors -> SourceUnavailableError
         # Check this BEFORE "not found" because parse errors might contain "not found"
@@ -324,13 +326,13 @@ class Collector:
         # Pattern 6: Generic "not found" with appid/steamid extraction
         # Only applies if NOT a parse error (already checked above)
         if "not found" in lowered:
-            appid_hint = "unknown"
+            identifier_hint = "unknown"
             for pattern in [r"appid\s+(\S+)", r"steamid\s+(\S+)"]:
                 match = re.search(pattern, lowered)
                 if match:
-                    appid_hint = match.group(1).rstrip(".,")
+                    identifier_hint = match.group(1).rstrip(".,")
                     break
-            return GameNotFoundError(appid=appid_hint, message=error_message)
+            return GameNotFoundError(identifier=identifier_hint, message=error_message)
 
         # Fallback: Generic error (not "unexpected" - that's too broad)
         return GameInsightsError(error_message)
@@ -518,6 +520,9 @@ class Collector:
             - Returns an empty list if no data could be fetched.
             - Returns complete/partial data if all/any appids succeed.
             - When include_failures=True, tracks which appids failed and why.
+            - Input validation (non-empty steam_appids) is only enforced when raise_on_error=True.
+              When raise_on_error=False, invalid/empty steam_appids will silently return an empty
+              result (or ([], []) when include_failures=True).
         """
         # Add input validation for raise_on_error mode
         if raise_on_error and not steam_appids:
@@ -678,21 +683,27 @@ class Collector:
         # Normalize records - fill missing values consistently
         sorted_months = sorted(all_months)
         fixed_columns = ["steam_appid", "name", "peak_active_player_all_time"]
+        # Only numeric columns should get fill_na_as; string columns stay as None/empty
+        numeric_columns = ["peak_active_player_all_time"] + sorted_months
 
         normalized_data = []
         for record in all_data:
             normalized_record = {}
             for col in fixed_columns + sorted_months:
                 value = record.get(col)
-                # Fill None or missing keys with fill_na_as (matches DataFrame.fillna behavior)
-                normalized_record[col] = value if value is not None else fill_na_as
+                if col in numeric_columns:
+                    # Fill None or missing keys with fill_na_as for numeric columns
+                    normalized_record[col] = value if value is not None else fill_na_as
+                else:
+                    # String columns: keep as None or original value
+                    normalized_record[col] = value
             normalized_data.append(normalized_record)
 
         if return_as == "dataframe":
             pd = self._require_pandas()
             df = pd.DataFrame(normalized_data, columns=fixed_columns + sorted_months)
-            # fillna for safety (data already normalized but keeps defensive behavior)
-            df.fillna(fill_na_as, inplace=True)
+            # Only fillna for numeric columns, not string columns
+            df[numeric_columns] = df[numeric_columns].fillna(fill_na_as)
             return (df, all_results) if include_failures else df
 
         return (normalized_data, all_results) if include_failures else normalized_data
@@ -795,7 +806,7 @@ class Collector:
             )
             if source_data["success"]:
                 raw_data.update({key: source_data["data"][key] for key in config.fields})
-            elif raise_on_primary_failure and config.source.__class__.__name__ == "SteamStore":
+            elif raise_on_primary_failure and config.is_primary:
                 # Primary source failed - raise appropriate exception
                 self._raise_for_fetch_failure(
                     source_name=config.source.__class__.__name__,

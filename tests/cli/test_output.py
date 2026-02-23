@@ -14,7 +14,6 @@ from gameinsights import cli
 def patched_collector(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
     monkeypatch.setattr(cli, "Collector", DummyCollector)
     yield
-    monkeypatch.undo()
 
 
 class TestCLIOutputFormats:
@@ -70,8 +69,10 @@ class TestCLIOutputFormats:
         captured = capsys.readouterr()
         # Quiet mode should suppress info messages but not errors
         # Note: "Collecting data" message is at info level, so it should be suppressed
-        # However, the message may still appear depending on logger configuration
-        # The key assertion is that the data is returned
+        # However, the message may still appear depending on logger configuration.
+        # The key assertion is that the data is returned correctly.
+        # We don't assert absence of the progress message because logger behavior
+        # may vary across test environments (stderr vs stdout, levels, etc.).
         payload = json.loads(captured.out)
         assert len(payload) == 1
 

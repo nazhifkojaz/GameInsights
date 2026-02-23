@@ -1,22 +1,22 @@
 """Tests for Collector property setters and configuration."""
 
+import pytest
+
 from gameinsights import Collector
+
+
+@pytest.fixture(autouse=True)
+def _mock_hltb_token(monkeypatch):
+    """Centralized mock for HowLongToBeat token to avoid repetition."""
+    from gameinsights.sources import HowLongToBeat
+    monkeypatch.setattr(HowLongToBeat, "_get_search_token", lambda *a, **kw: "mock_token")
 
 
 class TestCollectorProperties:
     """Tests for Collector property setters."""
 
-    def test_region_property_setter_updates_source(self, monkeypatch):
+    def test_region_property_setter_updates_source(self):
         """Test that setting region updates both collector and SteamStore region."""
-
-        # Mock the HowLongToBeat token method
-        def mock_get_token(*args, **kwargs):
-            return "mock_token"
-
-        from gameinsights.sources import HowLongToBeat
-
-        monkeypatch.setattr(HowLongToBeat, "_get_search_token", mock_get_token)
-
         collector = Collector()
 
         # Set region to a new value
@@ -27,21 +27,13 @@ class TestCollectorProperties:
         assert collector._region == "uk"
         assert collector.steamstore.region == "uk"
 
-        # Setting to same value should not trigger update
-        collector.steamstore.region = "fr"
-        collector.region = "fr"  # Same as source, should not update
+        # Setting to a different value updates both collector and source
+        collector.region = "fr"
         assert collector._region == "fr"
+        assert collector.steamstore.region == "fr"
 
-    def test_language_property_setter_updates_source(self, monkeypatch):
+    def test_language_property_setter_updates_source(self):
         """Test that setting language updates both collector and SteamStore language."""
-
-        def mock_get_token(*args, **kwargs):
-            return "mock_token"
-
-        from gameinsights.sources import HowLongToBeat
-
-        monkeypatch.setattr(HowLongToBeat, "_get_search_token", mock_get_token)
-
         collector = Collector()
 
         # Set language to a new value
@@ -52,20 +44,12 @@ class TestCollectorProperties:
         assert collector._language == "french"
         assert collector.steamstore.language == "french"
 
-    def test_steam_api_key_property_setter_updates_all_sources(self, monkeypatch):
+    def test_steam_api_key_property_setter_updates_all_sources(self):
         """Test that setting steam_api_key updates all Steam API sources."""
-
-        def mock_get_token(*args, **kwargs):
-            return "mock_token"
-
-        from gameinsights.sources import HowLongToBeat
-
-        monkeypatch.setattr(HowLongToBeat, "_get_search_token", mock_get_token)
-
         collector = Collector()
 
         # Set API key
-        test_key = "TEST_API_KEY_12345"
+        test_key = "TEST_API_KEY_12345"  # gitleaks:allow - test value only
         collector.steam_api_key = test_key
 
         # Verify all sources are updated
@@ -74,36 +58,20 @@ class TestCollectorProperties:
         # SteamAchievements and SteamUser may not be instantiated without the key
         # but the collector stores it for when they are created
 
-    def test_gamalytic_api_key_property_setter_updates_source(self, monkeypatch):
+    def test_gamalytic_api_key_property_setter_updates_source(self):
         """Test that setting gamalytic_api_key updates Gamalytic source."""
-
-        def mock_get_token(*args, **kwargs):
-            return "mock_token"
-
-        from gameinsights.sources import HowLongToBeat
-
-        monkeypatch.setattr(HowLongToBeat, "_get_search_token", mock_get_token)
-
         collector = Collector()
 
         # Set API key
-        test_key = "GAMALYTIC_KEY_67890"
+        test_key = "GAMALYTIC_KEY_67890"  # gitleaks:allow - test value only
         collector.gamalytic_api_key = test_key
 
         # Verify both collector and source are updated
         assert collector._gamalytic_api_key == test_key
         assert collector.gamalytic.api_key == test_key
 
-    def test_property_setter_idempotent(self, monkeypatch):
+    def test_property_setter_idempotent(self):
         """Test that setting property to same value doesn't trigger updates."""
-
-        def mock_get_token(*args, **kwargs):
-            return "mock_token"
-
-        from gameinsights.sources import HowLongToBeat
-
-        monkeypatch.setattr(HowLongToBeat, "_get_search_token", mock_get_token)
-
         collector = Collector()
 
         # Set initial value
@@ -122,16 +90,8 @@ class TestCollectorProperties:
 class TestCollectorConfiguration:
     """Tests for Collector configuration and initialization."""
 
-    def test_collector_initialization_with_api_keys(self, monkeypatch):
+    def test_collector_initialization_with_api_keys(self):
         """Test Collector initialization with API keys."""
-
-        def mock_get_token(*args, **kwargs):
-            return "mock_token"
-
-        from gameinsights.sources import HowLongToBeat
-
-        monkeypatch.setattr(HowLongToBeat, "_get_search_token", mock_get_token)
-
         steam_key = "STEAM_KEY"
         gamalytic_key = "GAMALYTIC_KEY"
 
@@ -140,16 +100,8 @@ class TestCollectorConfiguration:
         assert collector._steam_api_key == steam_key
         assert collector._gamalytic_api_key == gamalytic_key
 
-    def test_collector_initialization_with_region_language(self, monkeypatch):
+    def test_collector_initialization_with_region_language(self):
         """Test Collector initialization with region and language."""
-
-        def mock_get_token(*args, **kwargs):
-            return "mock_token"
-
-        from gameinsights.sources import HowLongToBeat
-
-        monkeypatch.setattr(HowLongToBeat, "_get_search_token", mock_get_token)
-
         collector = Collector(region="jp", language="japanese")
 
         assert collector.region == "jp"
