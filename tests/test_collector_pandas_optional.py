@@ -5,14 +5,16 @@ from unittest.mock import patch
 
 import pytest
 
+from gameinsights import DependencyNotInstalledError
+
 
 class TestPandasOptional:
     """Tests for optional pandas dependency."""
 
-    def test_get_user_data_dataframe_raises_import_error_without_pandas(
+    def test_get_user_data_dataframe_raises_dependency_not_installed_without_pandas(
         self, collector_with_mocks
     ):
-        """Test that get_user_data with return_as='dataframe' raises clear error without pandas."""
+        """Test that get_user_data with return_as='dataframe' raises DependencyNotInstalledError without pandas."""
         # Patch the builtins.__import__ to raise ImportError for pandas
         original_import = builtins.__import__
 
@@ -22,11 +24,11 @@ class TestPandasOptional:
             return original_import(name, *args, **kwargs)
 
         with patch("builtins.__import__", side_effect=mock_import):
-            with pytest.raises(ImportError) as exc_info:
+            with pytest.raises(DependencyNotInstalledError) as exc_info:
                 collector_with_mocks.get_user_data("12345", return_as="dataframe")
 
-            assert "pandas is required for DataFrame operations" in str(exc_info.value)
-            assert "pip install gameinsights[dataframe]" in str(exc_info.value)
+            assert exc_info.value.package == "pandas"
+            assert exc_info.value.install_extra == "dataframe"
 
     def test_get_user_data_list_works_without_pandas(self, collector_with_mocks):
         """Test that get_user_data with return_as='list' works without pandas."""
@@ -43,10 +45,10 @@ class TestPandasOptional:
 
             assert isinstance(result, list)
 
-    def test_get_games_active_player_data_raises_import_error_without_pandas(
+    def test_get_games_active_player_data_raises_dependency_not_installed_without_pandas(
         self, collector_with_mocks
     ):
-        """Test that get_games_active_player_data raises clear error without pandas."""
+        """Test that get_games_active_player_data raises DependencyNotInstalledError without pandas."""
         original_import = builtins.__import__
 
         def mock_import(name, *args, **kwargs):
@@ -55,15 +57,15 @@ class TestPandasOptional:
             return original_import(name, *args, **kwargs)
 
         with patch("builtins.__import__", side_effect=mock_import):
-            with pytest.raises(ImportError) as exc_info:
+            with pytest.raises(DependencyNotInstalledError) as exc_info:
                 collector_with_mocks.get_games_active_player_data("12345")
 
-            assert "pandas is required for DataFrame operations" in str(exc_info.value)
+            assert exc_info.value.package == "pandas"
 
-    def test_get_games_active_player_data_empty_raises_import_error_without_pandas(
+    def test_get_games_active_player_data_empty_raises_dependency_not_installed_without_pandas(
         self, collector_with_mocks
     ):
-        """Test that get_games_active_player_data with empty list raises clear error without pandas."""
+        """Test that get_games_active_player_data with empty list raises DependencyNotInstalledError without pandas."""
         original_import = builtins.__import__
 
         def mock_import(name, *args, **kwargs):
@@ -72,13 +74,15 @@ class TestPandasOptional:
             return original_import(name, *args, **kwargs)
 
         with patch("builtins.__import__", side_effect=mock_import):
-            with pytest.raises(ImportError) as exc_info:
+            with pytest.raises(DependencyNotInstalledError) as exc_info:
                 collector_with_mocks.get_games_active_player_data([])
 
-            assert "pandas is required for DataFrame operations" in str(exc_info.value)
+            assert exc_info.value.package == "pandas"
 
-    def test_get_game_review_raises_import_error_without_pandas(self, collector_with_mocks):
-        """Test that get_game_review raises clear error without pandas."""
+    def test_get_game_review_raises_dependency_not_installed_without_pandas(
+        self, collector_with_mocks
+    ):
+        """Test that get_game_review raises DependencyNotInstalledError without pandas."""
         original_import = builtins.__import__
 
         def mock_import(name, *args, **kwargs):
@@ -87,10 +91,10 @@ class TestPandasOptional:
             return original_import(name, *args, **kwargs)
 
         with patch("builtins.__import__", side_effect=mock_import):
-            with pytest.raises(ImportError) as exc_info:
+            with pytest.raises(DependencyNotInstalledError) as exc_info:
                 collector_with_mocks.get_game_review("12345")
 
-            assert "pandas is required for DataFrame operations" in str(exc_info.value)
+            assert exc_info.value.package == "pandas"
 
     def test_get_games_data_never_imports_pandas(self, collector_with_mocks):
         """Test that get_games_data never imports pandas (returns list)."""
