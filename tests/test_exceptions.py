@@ -29,6 +29,7 @@ class TestRaiseForFetchFailure(_collector_error.TestRaiseForFetchFailure):
 class TestRaiseOnErrorParameter(_collector_error.TestRaiseOnErrorParameter):
     __test__ = False
 
+
 __all__ = [
     "TestExceptionHierarchy",
     "TestCollectorErrorClassification",

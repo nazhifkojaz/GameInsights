@@ -71,9 +71,7 @@ class TestCLIPandasOptional:
         captured = capsys.readouterr()
         assert captured.out == ""
 
-    def test_json_output_works_without_pandas(
-        self, capsys, without_pandas, cli_reimport
-    ):
+    def test_json_output_works_without_pandas(self, capsys, without_pandas, cli_reimport):
         """Test that JSON output works without pandas."""
         _output_data = cli_reimport._output_data
         test_data = [{"steam_appid": "12345", "name": "Test Game"}]
