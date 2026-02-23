@@ -159,12 +159,18 @@ def source_fetcher(mock_request_response):
 
         # Inject a session if the caller did not supply one.
         kwargs = {**(instantiate_kwargs or {})}
+        created_session = None
         if "session" not in kwargs:
-            kwargs["session"] = requests.Session()
+            created_session = requests.Session()
+            kwargs["session"] = created_session
 
-        source = source_cls(**kwargs)
-        target_method = getattr(source, method)
-        return target_method(**(call_kwargs or {}))
+        try:
+            source = source_cls(**kwargs)
+            target_method = getattr(source, method)
+            return target_method(**(call_kwargs or {}))
+        finally:
+            if created_session is not None:
+                created_session.close()
 
     return _call
 

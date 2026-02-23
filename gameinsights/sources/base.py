@@ -73,8 +73,8 @@ class BaseSource(ABC):
             self._session.mount("http://", adapter)
         return self._session
 
-    @classmethod
-    def close_session(cls) -> None:
+    @staticmethod
+    def close_session() -> None:
         """Deprecated. Session lifecycle is now managed by Collector.
 
         This method is a no-op. Use ``Collector.close()`` or the
