@@ -82,7 +82,7 @@ def _output_data(
         else:
             json_payload = data if isinstance(data, list) else []
 
-        rendered = json.dumps(json_payload, indent=2, default=str)
+        rendered = json.dumps(json_payload, indent=2)
         if output_path:
             destination = Path(output_path)
             destination.parent.mkdir(parents=True, exist_ok=True)

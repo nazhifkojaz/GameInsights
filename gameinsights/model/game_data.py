@@ -1,3 +1,4 @@
+import math
 from datetime import datetime
 from typing import Any
 
@@ -19,14 +20,14 @@ class GameDataModel(BaseModel):
     is_free: bool | None = Field(default=None)
     is_coming_soon: bool | None = Field(default=None)
     recommendations: int | None = Field(default=None)
-    discount: float = Field(default=float("nan"), exclude=True)
+    discount: float | None = Field(default=None, exclude=True)
     price_currency: str | None = Field(default=None)
-    price_initial: float = Field(default=float("nan"))
-    price_final: float = Field(default=float("nan"))
+    price_initial: float | None = Field(default=None)
+    price_final: float | None = Field(default=None)
     metacritic_score: int | None = Field(default=None)
     release_date: datetime | None = Field(default=None)
     days_since_release: int | None = Field(default=None)
-    average_playtime_h: float = Field(default=float("nan"), description="in hours", exclude=True)
+    average_playtime_h: float | None = Field(default=None, description="in hours", exclude=True)
     average_playtime: int | None = Field(default=None)
     copies_sold: int | None = Field(default=None)
     estimated_revenue: int | None = Field(default=None, description="in USD")
@@ -47,7 +48,7 @@ class GameDataModel(BaseModel):
     total_negative: int | None = Field(default=None)
     total_reviews: int | None = Field(default=None)
     achievements_count: int | None = Field(default=None)
-    achievements_percentage_average: float = Field(default=float("nan"))
+    achievements_percentage_average: float | None = Field(default=None)
     achievements_list: list[dict[str, Any]] = Field(default_factory=list)
     comp_main: int | None = Field(default=None)
     comp_plus: int | None = Field(default=None)
@@ -156,14 +157,17 @@ class GameDataModel(BaseModel):
         "protondb_score",
         mode="before",
     )
-    def handle_float(cls, v: str | int | float | None) -> float:
-        """convert x types to float or float("nan")"""
+    def handle_float(cls, v: str | int | float | None) -> float | None:
+        """Convert to float or None; rejects NaN/inf as absent data."""
         if v is None:
-            return float("nan")
+            return None
         try:
-            return float(v)
+            result = float(v)
+            if not math.isfinite(result):
+                return None
+            return result
         except (ValueError, TypeError):
-            return float("nan")
+            return None
 
     @field_validator(
         "steam_appid",
@@ -198,9 +202,12 @@ class GameDataModel(BaseModel):
         return v if isinstance(v, list) else [v]
 
     def get_recap(self) -> dict[str, Any]:
-        """Create a reduced model with only recap fields"""
-        recap_data = {field: getattr(self, field) for field in self._RECAP_FIELDS}
-        return recap_data
+        """Create a reduced model with only recap fields.
+
+        Returns a JSON-safe dict: datetime fields are ISO strings, all values
+        are JSON-serializable (no NaN, no raw datetime objects).
+        """
+        return self.model_dump(mode="json", include=self._RECAP_FIELDS)
 
     @model_validator(mode="after")
     def preprocess_data(self) -> Self:
@@ -209,10 +216,7 @@ class GameDataModel(BaseModel):
         return self
 
     def compute_average_playtime(self) -> None:
-        if (
-            self.average_playtime_h is not None
-            and self.average_playtime_h == self.average_playtime_h
-        ):
+        if self.average_playtime_h is not None:
             self.average_playtime = int(self.average_playtime_h * 3600)
 
     def compute_days_since_release(self) -> None:

@@ -1,4 +1,4 @@
-import math
+import json
 from datetime import datetime
 from typing import Any, Callable
 
@@ -60,7 +60,7 @@ class TestGameDataModel:
             game_data,
             {
                 "release_date": lambda value: value is None,
-                "average_playtime_h": lambda value: math.isnan(value),
+                "average_playtime_h": lambda value: value is None,
                 "average_playtime": lambda value: value is None,
                 "steam_appid": "23456",
                 "developers": ["devmock 3"],
@@ -113,7 +113,7 @@ class TestGameDataModel:
             "steam_appid": "12345",
             "name": "Mock Game: The Adventure",
             "developers": ["devmock_1", "devmock_2"],
-            "release_date": datetime(2025, 1, 1),
+            "release_date": "2025-01-01T00:00:00",
             "price_final": 12.34,
             "owners": 1234,
             "tags": ["RPG", "MOBA"],
@@ -132,3 +132,46 @@ class TestGameDataModel:
         # check the length of the recap data
         assert len(recap_data) == len(game_data._RECAP_FIELDS)
         assert "count_retired" not in recap_data  # this field should not be in recap data
+
+    def test_game_data_model_dump_json_is_serializable(self):
+        """Verify model_dump(mode="json") produces valid JSON-serializable output."""
+        model = GameDataModel(steam_appid="test")
+        json_dict = model.model_dump(mode="json")
+
+        # Should not raise any exceptions
+        json_str = json.dumps(json_dict)
+
+        # Verify no NaN in output
+        assert "NaN" not in json_str
+        assert "Infinity" not in json_str
+
+    def test_game_data_model_get_recap_release_date_is_string(self, raw_data_normal):
+        """Verify get_recap() returns ISO string for release_date."""
+        model = GameDataModel(**raw_data_normal)
+        recap = model.get_recap()
+
+        assert isinstance(recap["release_date"], str)
+        assert recap["release_date"] == "2025-01-01T00:00:00"
+
+    def test_game_data_model_float_fields_default_to_none(self):
+        """Verify float fields default to None."""
+        model = GameDataModel(steam_appid="test")
+
+        assert model.price_initial is None
+        assert model.price_final is None
+        assert model.average_playtime_h is None
+        assert model.achievements_percentage_average is None
+        assert model.discount is None
+
+    def test_game_data_model_float_validator_rejects_nan_inf(self):
+        """Verify NaN and inf values are converted to None."""
+        model = GameDataModel(
+            steam_appid="test",
+            price_initial=float("nan"),
+            price_final=float("inf"),
+            average_playtime_h=float("-inf"),
+        )
+
+        assert model.price_initial is None
+        assert model.price_final is None
+        assert model.average_playtime_h is None

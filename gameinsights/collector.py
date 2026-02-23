@@ -539,7 +539,7 @@ class Collector:
                     verbose=verbose,
                     raise_on_primary_failure=raise_on_error,
                 )
-                payload = game_data.get_recap() if recap else game_data.model_dump()
+                payload = game_data.get_recap() if recap else game_data.model_dump(mode="json")
                 result.append(payload)
                 all_results.append(FetchResult(identifier=str(appid), success=True, data=payload))
             except GameInsightsError as e:
