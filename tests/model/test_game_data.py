@@ -19,8 +19,8 @@ def assert_game_data_values(
             callable validators that receive the field value and must return bool
 
     Note:
-        Callable validators must return bool. Returning None will be treated as False
-        and will fail the assertion with a clear message.
+        Callable validators must return bool explicitly. Any non-bool return
+        (including None) will raise an AssertionError before the assertion check.
     """
     for field, expected in expectations.items():
         value = getattr(model, field)

@@ -11,14 +11,15 @@ class TestValidatorsEdgeCases:
 
     def test_parse_release_date_with_unix_timestamp(self):
         """Test that Unix timestamps are correctly converted to datetime."""
-        # Unix timestamp for 2025-01-01 00:00:00 UTC
+        # Use datetime.fromtimestamp() to compute the expected value,
+        # which matches the behavior in GameDataModel.parse_release_date
         unix_ts = 1735689600
+        expected = datetime.datetime.fromtimestamp(unix_ts)
+
         model = GameDataModel(steam_appid="test", release_date=unix_ts)
 
         assert isinstance(model.release_date, datetime.datetime)
-        assert model.release_date.year == 2025
-        assert model.release_date.month == 1
-        assert model.release_date.day == 1
+        assert model.release_date == expected
 
     def test_handle_integers_with_string_numbers(self):
         """Test that string numbers are converted to integers."""

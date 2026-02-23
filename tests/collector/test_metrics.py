@@ -96,29 +96,40 @@ class TestCollectorMetrics:
         # Verify exception metrics were emitted
         assert mock_metrics["counter"].called
 
-    def test_metrics_disabled_when_none(self, monkeypatch):
-        """Test that the code works correctly when metrics collector is disabled.
+    def test_metrics_disabled_when_none(self, monkeypatch, caplog):
+        """Test that metrics are not emitted when GAMEINSIGHTS_METRICS is not set."""
+        import importlib
+        import logging
+        import sys
 
-        Note: This test verifies that operations complete without errors
-        regardless of the metrics enabled state. The actual emission
-        happens inside MetricsCollector._emit which has early-return
-        when disabled - that behavior is covered by the metrics module tests.
-        """
+        # Ensure metrics are disabled by unsetting the environment variable
+        monkeypatch.delenv("GAMEINSIGHTS_METRICS", raising=False)
+
+        # Force recreation of metrics module with disabled state
+        # Need to reload the module, not the imported instance
+        if "gameinsights.utils.metrics" in sys.modules:
+            importlib.reload(sys.modules["gameinsights.utils.metrics"])
+
         from gameinsights import Collector
 
         collector = Collector()
 
-        # Mock a successful fetch
-        with patch.object(
-            collector.steamstore,
-            "fetch",
-            return_value={"success": True, "data": {"steam_appid": "12345", "name": "Test"}},
-        ):
-            # Should not raise any exceptions regardless of metrics state
-            result = collector._fetch_with_observability(
-                collector.steamstore, identifier="12345", scope="id", verbose=False
-            )
+        # Capture logs from the metrics logger
+        with caplog.at_level(logging.INFO, logger="gameinsights.metrics"):
+            # Mock a successful fetch
+            with patch.object(
+                collector.steamstore,
+                "fetch",
+                return_value={"success": True, "data": {"steam_appid": "12345", "name": "Test"}},
+            ):
+                result = collector._fetch_with_observability(
+                    collector.steamstore, identifier="12345", scope="id", verbose=False
+                )
 
         # Result should still be returned correctly
         assert result["success"] is True
         assert result["data"]["steam_appid"] == "12345"
+
+        # No metrics should have been logged
+        metric_logs = [r for r in caplog.records if r.name == "gameinsights.metrics"]
+        assert len(metric_logs) == 0, "Expected no metrics to be logged when disabled"

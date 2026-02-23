@@ -28,12 +28,10 @@ class TestCollectorErrorHandling:
         # Fields from successful sources should be present
         assert game_data.name is not None  # From SteamStore
         assert game_data.protondb_tier is not None  # From ProtonDB
-        # Note: Gamalytic source succeeds but test fixture doesn't include developers
-        # The developers field would be populated by SteamStore in real usage
 
-        # Fields from failed SteamCharts source should be None/default
-        # ccu is from SteamCharts, so it should be None when SteamCharts fails
-        assert game_data.ccu is None
+        # Fields from failed source should be None/default
+        # active_player_24h is from SteamCharts, so it should be None when SteamCharts fails
+        assert game_data.active_player_24h is None
 
     def test_get_games_data_with_partial_failures_and_include_failures(
         self, collector_with_one_failed_source

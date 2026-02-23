@@ -48,8 +48,13 @@ class DummyCollector:
         return self._name_based_sources
 
     def get_games_data(
-        self, steam_appids: list[str], recap: bool = False, verbose: bool = False
-    ) -> list[dict[str, Any]]:
+        self,
+        steam_appids: str | list[str],
+        recap: bool = False,
+        verbose: bool = True,
+        include_failures: bool = False,
+        raise_on_error: bool = False,
+    ) -> list[dict[str, Any]] | tuple[list[dict[str, Any]], list[FetchResult]]:
         if recap:
             return [
                 {
@@ -76,14 +81,19 @@ class DummyCollector:
                 "active_player_24h": 111,
             }
         ]
-        if include_failures:
-            results = [FetchResult(identifier="12345", success=True, data=data[0])]
-            return data, results
 
         if return_as == "dataframe":
             import pandas as pd
 
-            return pd.DataFrame(data)
+            df = pd.DataFrame(data)
+            if include_failures:
+                results = [FetchResult(identifier="12345", success=True, data=data[0])]
+                return df, results
+            return df
+
+        if include_failures:
+            results = [FetchResult(identifier="12345", success=True, data=data[0])]
+            return data, results
 
         return data
 
