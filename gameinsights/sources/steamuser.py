@@ -1,6 +1,8 @@
 from enum import IntEnum
 from typing import Any, Literal
 
+import requests
+
 from gameinsights.sources.base import BaseSource, SourceResult, SuccessResult
 from gameinsights.utils.ratelimit import logged_rate_limited
 
@@ -36,9 +38,16 @@ class SteamUser(BaseSource):
         "http://api.steampowered.com/IPlayerService/GetRecentlyPlayedGames/v0001/"
     )
 
-    def __init__(self, api_key: str | None = None) -> None:
-        """Initialize SteamUser source."""
-        super().__init__()
+    def __init__(
+        self, api_key: str | None = None, session: requests.Session | None = None
+    ) -> None:
+        """Initialize SteamUser source.
+
+        Args:
+            api_key: Optional API key for SteamWeb API.
+            session: Optional requests.Session for connection pooling.
+        """
+        super().__init__(session=session)
         self._api_key = api_key
 
     @property

@@ -1,5 +1,7 @@
 from typing import Any
 
+import requests
+
 from gameinsights.sources.base import BaseSource, SourceResult, SuccessResult
 from gameinsights.utils.ratelimit import logged_rate_limited
 
@@ -18,9 +20,16 @@ class SteamAchievements(BaseSource):
     )
     _schema_url = "http://api.steampowered.com/ISteamUserStats/GetSchemaForGame/v2"
 
-    def __init__(self, api_key: str | None = None) -> None:
-        """Initialize SteamAchievement source."""
-        super().__init__()
+    def __init__(
+        self, api_key: str | None = None, session: requests.Session | None = None
+    ) -> None:
+        """Initialize SteamAchievement source.
+
+        Args:
+            api_key: Optional API key for SteamWeb API.
+            session: Optional requests.Session for connection pooling.
+        """
+        super().__init__(session=session)
         self._api_key = api_key
 
     @property

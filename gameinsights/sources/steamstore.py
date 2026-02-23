@@ -1,5 +1,7 @@
 from typing import Any
 
+import requests
+
 from gameinsights.sources.base import BaseSource, SourceResult, SuccessResult
 from gameinsights.utils.ratelimit import logged_rate_limited
 
@@ -30,14 +32,22 @@ class SteamStore(BaseSource):
     _valid_labels_set: frozenset[str] = frozenset(_STEAM_LABELS)
     _base_url = "https://store.steampowered.com/api/appdetails"
 
-    def __init__(self, region: str = "us", language: str = "english", api_key: str | None = None):
+    def __init__(
+        self,
+        region: str = "us",
+        language: str = "english",
+        api_key: str | None = None,
+        session: requests.Session | None = None,
+    ) -> None:
         """Initialize the Steam with an optional API key.
+
         Args:
-            region (str): Region for the game data. Default is "us".
-            language (str): Language for the API request. Default is "english".
-            api_key (str): Optional API key for Steam API.
+            region: Region for the game data. Default is "us".
+            language: Language for the API request. Default is "english".
+            api_key: Optional API key for Steam API.
+            session: Optional requests.Session for connection pooling.
         """
-        super().__init__()
+        super().__init__(session=session)
         self._region = region
         self._language = language
         self._api_key = api_key

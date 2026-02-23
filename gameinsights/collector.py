@@ -4,6 +4,9 @@ import time
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Literal, NamedTuple
 
+import requests
+from requests.adapters import HTTPAdapter
+
 from gameinsights import sources
 from gameinsights.model.game_data import GameDataModel
 from gameinsights.sources.base import SourceResult
@@ -38,6 +41,19 @@ class SourceConfig(NamedTuple):
 
 
 class Collector:
+    """Collector for Steam game data from multiple sources.
+
+    Thread Safety:
+        Each Collector instance owns a requests.Session that is NOT
+        thread-safe for concurrent use. Do NOT share a single Collector
+        instance across threads. Instead, create a separate Collector
+        per thread. Multiple Collectors are safe because each owns
+        an independent session.
+    """
+
+    _session: requests.Session
+    _closed: bool
+
     def __init__(
         self,
         region: str = "us",
@@ -48,13 +64,14 @@ class Collector:
         period: int = 60,
     ) -> None:
         """Initialize the collector with an optional API key.
+
         Args:
-            region (str): Region for the API request. Default is "us".
-            language (str): Language for the API request. Default is "english".
-            steam_api_key (str): Optional API key for Steam API.
-            gamalytic_api_key (str): Optional API key for Gamalytic API.
-            calls (int): Max number of API calls allowed per period. Default is 60.
-            period (int): Time period in seconds for the rate limit. Default is 60.
+            region: Region for the API request. Default is "us".
+            language: Language for the API request. Default is "english".
+            steam_api_key: Optional API key for Steam API.
+            gamalytic_api_key: Optional API key for Gamalytic API.
+            calls: Max number of API calls allowed per period. Default is 60.
+            period: Time period in seconds for the rate limit. Default is 60.
         """
         self._region = region
         self._language = language
@@ -62,9 +79,18 @@ class Collector:
         self._gamalytic_api_key = gamalytic_api_key
         self.calls = calls
         self.period = period
+        self._closed = False
 
-        self._init_sources()
-        self._init_sources_config()
+        # Create session before initializing sources
+        self._session = self._create_session()
+
+        try:
+            self._init_sources()
+            self._init_sources_config()
+        except Exception:
+            # Clean up session if initialization fails
+            self._session.close()
+            raise
 
         self._logger = LoggerWrapper(self.__class__.__name__)
 
@@ -72,21 +98,54 @@ class Collector:
     def logger(self) -> "LoggerWrapper":
         return self._logger
 
+    @staticmethod
+    def _create_session() -> requests.Session:
+        """Create and configure a requests.Session with connection pooling.
+
+        Returns:
+            A configured session with HTTPAdapter mounted for both
+            https:// and http:// schemes.
+
+        Note:
+            This method is internal and creates sessions for hardcoded
+            source URLs only. It must NOT be exposed to user input to
+            prevent SSRF (Server-Side Request Forgery) attacks.
+        """
+        session = requests.Session()
+        adapter = HTTPAdapter(
+            pool_connections=10,  # Sufficient for 9 sources across ~5 unique domains
+            pool_maxsize=20,  # Allows up to 20 concurrent connections per domain
+            pool_block=False,  # Don't block when pool is full
+        )
+        session.mount("https://", adapter)
+        session.mount("http://", adapter)
+        return session
+
     def _init_sources(self) -> None:
         """Initialize the sources with the current settings."""
-        self.steamreview = sources.SteamReview()
+        self.steamreview = sources.SteamReview(session=self._session)
         self.steamstore = sources.SteamStore(
-            region=self.region, language=self.language, api_key=self.steam_api_key
+            region=self.region,
+            language=self.language,
+            api_key=self.steam_api_key,
+            session=self._session,
         )
-        self.steamspy = sources.SteamSpy()
-        self.gamalytic = sources.Gamalytic(api_key=self.gamalytic_api_key)
-        self.steamcharts = sources.SteamCharts()
-        self.howlongtobeat = sources.HowLongToBeat()
-        self.steamachievements = sources.SteamAchievements(api_key=self.steam_api_key)
-        self.steamuser = sources.SteamUser(api_key=self.steam_api_key)
-
-        # New sources
-        self.protondb = sources.ProtonDB()
+        self.steamspy = sources.SteamSpy(session=self._session)
+        self.gamalytic = sources.Gamalytic(
+            api_key=self.gamalytic_api_key,
+            session=self._session,
+        )
+        self.steamcharts = sources.SteamCharts(session=self._session)
+        self.howlongtobeat = sources.HowLongToBeat(session=self._session)
+        self.steamachievements = sources.SteamAchievements(
+            api_key=self.steam_api_key,
+            session=self._session,
+        )
+        self.steamuser = sources.SteamUser(
+            api_key=self.steam_api_key,
+            session=self._session,
+        )
+        self.protondb = sources.ProtonDB(session=self._session)
 
     def _init_sources_config(self) -> None:
         """Initialize sources config."""
@@ -610,17 +669,29 @@ class Collector:
         """Exit the context manager and close the session.
 
         Args:
-            *args: Exception info (unused).
+            *args: Exception info from the with block (unused).
         """
-        self.close()
+        try:
+            self.close()
+        except Exception as e:
+            # Log but don't suppress the original exception from with block
+            if hasattr(self, "_logger"):
+                self.logger.log(
+                    f"Error closing session: {e}",
+                    level="error",
+                    verbose=True,
+                )
 
     def close(self) -> None:
-        """Close the shared session and release resources.
+        """Close the HTTP session and release all pooled connections.
 
         This method should be called when done making requests to properly
         close HTTP connections and release resources. When using the Collector
         as a context manager, this is called automatically.
-        """
-        from gameinsights.sources.base import BaseSource
 
-        BaseSource.close_session()
+        This method is idempotent - calling it multiple times has no effect
+        beyond the first call.
+        """
+        if not self._closed:
+            self._session.close()
+            self._closed = True

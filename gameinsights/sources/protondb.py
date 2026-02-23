@@ -13,6 +13,8 @@ from typing import Any
 from gameinsights.sources.base import BaseSource, SourceResult, SuccessResult
 from gameinsights.utils.ratelimit import logged_rate_limited
 
+import requests
+
 _PROTONDB_LABELS = (
     "protondb_tier",
     "protondb_score",
@@ -43,6 +45,14 @@ class ProtonDB(BaseSource):
     _base_url = "https://www.protondb.com"
     _valid_labels: tuple[str, ...] = _PROTONDB_LABELS
     _valid_labels_set: frozenset[str] = frozenset(_PROTONDB_LABELS)
+
+    def __init__(self, session: requests.Session | None = None) -> None:
+        """Initialize ProtonDB source.
+
+        Args:
+            session: Optional requests.Session for connection pooling.
+        """
+        super().__init__(session=session)
 
     @logged_rate_limited(calls=60, period=60)
     def fetch(

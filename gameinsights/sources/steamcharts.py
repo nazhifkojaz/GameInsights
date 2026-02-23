@@ -1,6 +1,7 @@
 from datetime import datetime
 from typing import Any
 
+import requests
 from bs4 import BeautifulSoup
 from bs4.element import Tag
 
@@ -23,9 +24,13 @@ class SteamCharts(BaseSource):
     _valid_labels_set: frozenset[str] = frozenset(_STEAMCHARTS_LABELS)
     _base_url = "https://steamcharts.com/app"
 
-    def __init__(self) -> None:
-        """Initialize the SteamCharts source."""
-        super().__init__()
+    def __init__(self, session: requests.Session | None = None) -> None:
+        """Initialize the SteamCharts source.
+
+        Args:
+            session: Optional requests.Session for connection pooling.
+        """
+        super().__init__(session=session)
 
     @logged_rate_limited(calls=60, period=60)  # web scrape -> 60 requests per minute to be polite
     def fetch(

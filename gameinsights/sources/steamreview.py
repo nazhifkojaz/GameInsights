@@ -1,6 +1,8 @@
 import time
 from typing import Any, Literal, TypedDict, cast
 
+import requests
+
 from gameinsights.sources.base import BaseSource, SourceResult, SuccessResult
 from gameinsights.utils.ratelimit import logged_rate_limited
 
@@ -49,9 +51,13 @@ class SteamReview(BaseSource):
     _valid_labels_set: frozenset[str] = frozenset(_STEAMREVIEW_SUMMARY_LABELS)
     _base_url = "https://store.steampowered.com/appreviews"
 
-    def __init__(self) -> None:
-        """Initialize SteamReview source."""
-        super().__init__()
+    def __init__(self, session: requests.Session | None = None) -> None:
+        """Initialize SteamReview source.
+
+        Args:
+            session: Optional requests.Session for connection pooling.
+        """
+        super().__init__(session=session)
 
     def fetch(
         self,

@@ -23,6 +23,8 @@ import requests
 from gameinsights.sources.base import SYNTHETIC_ERROR_CODE, BaseSource, SourceResult, SuccessResult
 from gameinsights.utils.ratelimit import logged_rate_limited
 
+import requests
+
 _HOWLONGTOBEAT_LABELS = (
     "game_id",
     "game_name",
@@ -62,6 +64,14 @@ class HowLongToBeat(BaseSource):
     REFERER_HEADER = BASE_URL
     _valid_labels: tuple[str, ...] = _HOWLONGTOBEAT_LABELS
     _valid_labels_set: frozenset[str] = frozenset(_HOWLONGTOBEAT_LABELS)
+
+    def __init__(self, session: requests.Session | None = None) -> None:
+        """Initialize HowLongToBeat source.
+
+        Args:
+            session: Optional requests.Session for connection pooling.
+        """
+        super().__init__(session=session)
 
     @logged_rate_limited(calls=60, period=60)  # web scrape -> 60 requests per minute to be polite
     def fetch(
