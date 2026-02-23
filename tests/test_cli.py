@@ -2,110 +2,17 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from typing import Any, Iterator, Literal
+from typing import Any, Iterator
 
-import pandas as pd
 import pytest
+from tests.fixtures.cli_fixtures import DummyCollector
 
 from gameinsights import cli
-from gameinsights.collector import FetchResult, SourceConfig
-
-
-class _DummySource:
-    def __init__(self, name: str) -> None:
-        self.__class__ = type(name, (), {})
-
-
-class _DummyCollector:
-    def __init__(self, *args: Any, **kwargs: Any) -> None:
-        steamstore = _DummySource("SteamStore")
-        gamalytic = _DummySource("Gamalytic")
-        self._id_based_sources = [
-            SourceConfig(steamstore, ["steam_appid", "name", "price_final"]),
-            SourceConfig(gamalytic, ["copies_sold"]),
-        ]
-        self._name_based_sources: list[SourceConfig] = []
-        self._records = [
-            {
-                "steam_appid": "12345",
-                "name": "Mock Game",
-                "price_final": 12.34,
-                "copies_sold": 1000,
-            }
-        ]
-        self._closed = False  # Track closed state for behavioral parity with Collector
-
-    @property
-    def id_based_sources(self) -> list[SourceConfig]:
-        return self._id_based_sources
-
-    @property
-    def name_based_sources(self) -> list[SourceConfig]:
-        return self._name_based_sources
-
-    def get_games_data(
-        self, steam_appids: list[str], recap: bool = False, verbose: bool = False
-    ) -> list[dict[str, Any]]:
-        return self._records
-
-    def get_games_active_player_data(
-        self,
-        steam_appids: list[str],
-        fill_na_as: int = -1,
-        verbose: bool = False,
-        include_failures: bool = False,
-        *,
-        return_as: Literal["list", "dataframe"] = "list",
-    ) -> (
-        list[dict[str, Any]]
-        | pd.DataFrame
-        | tuple[list[dict[str, Any]], list[FetchResult]]
-        | tuple[pd.DataFrame, list[FetchResult]]
-    ):
-        # Return list of dict for default return_as="list"
-        data = [
-            {
-                "steam_appid": "12345",
-                "active_player_24h": 111,
-            }
-        ]
-        return data
-
-    def close(self) -> None:
-        """Close the owned session.
-
-        Mimics Collector.close() for behavioral parity.
-        Since _DummyCollector has no real session, this only
-        tracks the closed state for idempotent close behavior.
-        """
-        if not self._closed:
-            self._closed = True
-
-    def __enter__(self) -> "_DummyCollector":
-        """Enter the context manager.
-
-        Mimics Collector.__enter__ by returning self.
-        """
-        return self
-
-    def __exit__(self, *args: object) -> None:
-        """Exit the context manager and close the session.
-
-        Mimics Collector.__exit__ by calling close().
-        The *args capture exception info (exc_type, exc_value, traceback)
-        but are unused, matching the real implementation.
-        """
-        try:
-            self.close()
-        except Exception:
-            # Real Collector logs but doesn't suppress exceptions.
-            # We pass here to maintain that behavior.
-            pass
 
 
 @pytest.fixture(autouse=True)
 def patched_collector(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
-    monkeypatch.setattr(cli, "Collector", _DummyCollector)
+    monkeypatch.setattr(cli, "Collector", DummyCollector)
     yield
     monkeypatch.undo()
 
@@ -171,7 +78,7 @@ def test_cli_collector_context_manager_called(monkeypatch: pytest.MonkeyPatch) -
     """
     exit_tracker = {"called": False}
 
-    class ExitTrackingDummyCollector(_DummyCollector):
+    class ExitTrackingDummyCollector(DummyCollector):
         def __exit__(self, *args: object) -> None:
             exit_tracker["called"] = True
             super().__exit__(*args)
@@ -183,3 +90,33 @@ def test_cli_collector_context_manager_called(monkeypatch: pytest.MonkeyPatch) -
     assert exit_tracker[
         "called"
     ], "Collector.__exit__ should be invoked when using context manager"
+
+
+def test_cli_collector_context_manager_cleans_up_on_exception(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Verify that the Collector.__exit__ is called even when an exception occurs.
+
+    This test ensures that session cleanup happens even when the collection
+    process encounters an error, which is critical for proper resource management.
+    """
+    exit_tracker = {"called": False}
+
+    class FailingDummyCollector(DummyCollector):
+        def get_games_data(self, steam_appids: list[str], **kwargs: Any) -> Any:
+            raise RuntimeError("Simulated collection failure")
+
+        def __exit__(self, *args: object) -> None:
+            exit_tracker["called"] = True
+            # Don't call super().__exit__ since it doesn't suppress exceptions anyway
+            self.close()
+
+    monkeypatch.setattr(cli, "Collector", FailingDummyCollector)
+
+    # The CLI will propagate the RuntimeError, but __exit__ should still be called
+    with pytest.raises(RuntimeError):
+        cli.main(["collect", "--appid", "12345", "--format", "json"])
+
+    assert exit_tracker[
+        "called"
+    ], "Collector.__exit__ should be invoked even when an exception occurs"

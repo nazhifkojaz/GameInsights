@@ -1,172 +1,41 @@
-import pandas as pd
-import pytest
+"""Backward compatibility module for split collector tests.
 
-from gameinsights.collector import FetchResult
-from gameinsights.model import GameDataModel
+This module re-exports all test classes from the split test files to maintain
+backward compatibility with any external tooling that expects tests in this file.
+"""
 
+# Import from split test modules
+from tests.collector.test_dataframe import TestCollectorDataFrame
+from tests.collector.test_error_classification import (
+    TestCollectorErrorClassification,
+    TestRaiseForFetchFailure,
+    TestRaiseOnErrorParameter,
+)
+from tests.collector.test_error_handling import (
+    TestCollectorErrorHandling,
+    TestCollectorFailureReporting,
+)
+from tests.collector.test_fetching import TestCollectorFetching
+from tests.collector.test_metrics import TestCollectorMetrics
+from tests.collector.test_multi_appid import TestMultiAppidScenarios
+from tests.collector.test_properties import TestCollectorConfiguration, TestCollectorProperties
+from tests.collector.test_user_data import TestGetUserData
 
-class TestCollector:
-    def test_fetch_raw_data(self, collector_with_mocks):
-        raw_data = collector_with_mocks._fetch_raw_data(steam_appid="12345")
+# Re-export for backward compatibility
+TestCollector = TestCollectorFetching
 
-        assert isinstance(raw_data, GameDataModel)
-
-    @pytest.mark.parametrize(
-        "appids, expected_len",
-        [("12345", 1), (["12345", "12345"], 2), ([], 0)],
-        ids=["single_appid", "multiple_appids", "empty_appids"],
-    )
-    def test_get_games_data(self, collector_with_mocks, appids, expected_len):
-        games_data = collector_with_mocks.get_games_data(steam_appids=appids)
-
-        assert isinstance(games_data, list)
-        assert len(games_data) == expected_len
-
-        if expected_len > 0:
-            assert isinstance(games_data[0], dict)
-            assert games_data[0]["steam_appid"] == "12345"
-
-    @pytest.mark.parametrize(
-        "appids, expected_len",
-        [("12345", 1), (["12345", "12345"], 2), ([], 0)],
-        ids=["single_appid", "multiple_appids", "empty_appids"],
-    )
-    def test_get_games_active_player_data(self, collector_with_mocks, appids, expected_len):
-        active_player_data = collector_with_mocks.get_games_active_player_data(steam_appids=appids)
-
-        assert isinstance(active_player_data, list)
-        assert len(active_player_data) == expected_len
-
-        if expected_len > 0:
-            assert isinstance(active_player_data[0], dict)
-            assert active_player_data[0]["steam_appid"] == "12345"
-
-    @pytest.mark.parametrize(
-        "review_only, has_reviews_labels",
-        [(True, False), (False, True)],
-        ids=["review_only_true", "review_only_false"],
-    )
-    def test_get_game_review(self, collector_with_mocks, review_only, has_reviews_labels):
-        review_data = collector_with_mocks.get_game_review(
-            steam_appid="12345", review_only=review_only
-        )
-
-        assert isinstance(review_data, list)
-
-        if has_reviews_labels:
-            # When review_only=False, returns list with single dict containing reviews
-            assert "reviews" in review_data[0]
-            assert len(review_data[0]["reviews"]) > 0
-        else:
-            # When review_only=True, returns list of review dicts
-            assert "reviews" not in review_data[0] if review_data else True
-
-    def test_all_collector_fields_exist_in_model(self, collector_with_mocks):
-        """Verify all collector field names exist in GameDataModel."""
-        model_fields = set(GameDataModel.model_fields.keys())
-
-        all_configs = (
-            collector_with_mocks.id_based_sources + collector_with_mocks.name_based_sources
-        )
-        for config in all_configs:
-            for field in config.fields:
-                assert (
-                    field in model_fields
-                ), f"Field '{field}' from {config.source.__class__.__name__} not in GameDataModel"
-
-    def test_get_games_data_with_failures_returns_tuple(self, collector_with_mocks):
-        """Test that include_failures=True returns tuple with FetchResult list."""
-        games_data, results = collector_with_mocks.get_games_data(
-            steam_appids=["12345"], include_failures=True
-        )
-
-        assert isinstance(games_data, list)
-        assert isinstance(results, list)
-        assert len(results) == 1
-        assert isinstance(results[0], FetchResult)
-        assert results[0].success is True
-        assert results[0].identifier == "12345"
-        assert results[0].data is not None
-        assert results[0].error is None
-
-    def test_get_games_data_backward_compatible(self, collector_with_mocks):
-        """Test that default behavior (include_failures=False) returns list only."""
-        games_data = collector_with_mocks.get_games_data(steam_appids=["12345"])
-
-        # Should return list, not tuple
-        assert isinstance(games_data, list)
-        assert not isinstance(games_data, tuple)
-        assert len(games_data) == 1
-
-    def test_get_games_data_empty_input_with_failures(self, collector_with_mocks):
-        """Test that empty input returns empty results with include_failures=True."""
-        games_data, results = collector_with_mocks.get_games_data(
-            steam_appids=[], include_failures=True
-        )
-
-        assert games_data == []
-        assert results == []
-
-    def test_get_games_active_player_data_with_failures(self, collector_with_mocks):
-        """Test that include_failures=True returns tuple with FetchResult list."""
-        data, results = collector_with_mocks.get_games_active_player_data(
-            steam_appids=["12345"], include_failures=True
-        )
-
-        assert isinstance(data, list)
-        assert isinstance(results, list)
-        assert len(results) == 1
-        assert isinstance(results[0], FetchResult)
-        assert results[0].success is True
-        assert results[0].identifier == "12345"
-
-    def test_get_games_active_player_data_as_dataframe(self, collector_with_mocks):
-        """Test that return_as='dataframe' returns DataFrame."""
-        df = collector_with_mocks.get_games_active_player_data(
-            steam_appids=["12345"], return_as="dataframe"
-        )
-
-        assert isinstance(df, pd.DataFrame)
-        assert not isinstance(df, tuple)
-
-    def test_get_game_review_as_dataframe(self, collector_with_mocks):
-        """Test that return_as='dataframe' returns DataFrame."""
-        df = collector_with_mocks.get_game_review(steam_appid="12345", return_as="dataframe")
-
-        assert isinstance(df, pd.DataFrame)
-
-    def test_get_games_active_player_data_list_default(self, collector_with_mocks):
-        """Test that default behavior returns list."""
-        data = collector_with_mocks.get_games_active_player_data(steam_appids=["12345"])
-
-        assert isinstance(data, list)
-        assert not isinstance(data, tuple)
-
-    def test_get_game_review_list_default(self, collector_with_mocks):
-        """Test that default behavior returns list."""
-        data = collector_with_mocks.get_game_review(steam_appid="12345")
-
-        assert isinstance(data, list)
-
-    def test_partial_source_failure_continues_collection(self, collector_with_one_failed_source):
-        """Test that collector continues when one source fails.
-
-        Verifies that:
-        1. Game data is still returned even when one source fails
-        2. Data from successful sources is included
-        3. Data from the failed source is excluded
-        """
-        # _fetch_raw_data should still return a GameDataModel
-        game_data = collector_with_one_failed_source._fetch_raw_data(steam_appid="12345")
-
-        assert isinstance(game_data, GameDataModel)
-        assert game_data.steam_appid == "12345"
-
-        # Fields from successful sources should be present
-        assert game_data.name is not None  # From SteamStore
-        assert game_data.protondb_tier is not None  # From ProtonDB
-        assert game_data.developers is not None  # From Gamalytic
-
-        # Fields from failed SteamCharts source should be None/default
-        # ccu is from SteamCharts, so it should be None when SteamCharts fails
-        assert game_data.ccu is None
+__all__ = [
+    "TestCollector",
+    "TestCollectorFetching",
+    "TestCollectorDataFrame",
+    "TestCollectorErrorHandling",
+    "TestCollectorFailureReporting",
+    "TestCollectorErrorClassification",
+    "TestRaiseForFetchFailure",
+    "TestRaiseOnErrorParameter",
+    "TestCollectorMetrics",
+    "TestMultiAppidScenarios",
+    "TestCollectorProperties",
+    "TestCollectorConfiguration",
+    "TestGetUserData",
+]

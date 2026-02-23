@@ -53,15 +53,8 @@ class TestSteamStore:
         [
             (["name"], ["name"]),
             (["name", "invalid_label"], ["name"]),
-            (["steam_appid", "name", "invalid_label"], ["name", "steam_appid"]),
-            (["invalid_label"], []),
         ],
-        ids=[
-            "normal_filtering",
-            "filtering_with_invalid_label",
-            "filter_labels_unordered",
-            "filtering_with_only_invalid_label",
-        ],
+        ids=["valid_label", "valid_label_with_invalid"],
     )
     def test_fetch_with_filtering(
         self,
@@ -70,6 +63,11 @@ class TestSteamStore:
         selected_labels,
         expected_labels,
     ):
+        """Test label filtering functionality.
+
+        Note: Comprehensive filtering edge cases are tested in test_base.py.
+        This test verifies integration with actual SteamStore source.
+        """
         result = source_fetcher(
             SteamStore,
             instantiate_kwargs={"region": "us", "language": "english"},

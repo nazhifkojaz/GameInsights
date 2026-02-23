@@ -58,17 +58,6 @@ class TestSteamReview:
         [
             (["recommendation_id"], ["recommendation_id"]),
             (["recommendation_id", "invalid_label"], ["recommendation_id"]),
-            (
-                ["author_steamid", "recommendation_id", "invalid_label"],
-                ["recommendation_id", "author_steamid"],
-            ),
-            (["invalid_label"], []),
-        ],
-        ids=[
-            "normal_filtering",
-            "filtering_with_invalid_label",
-            "unordered_filtering_with_invalid_label",
-            "filtering_with_only_invalid_label",
         ],
     )
     def test_fetch_mode_review_with_label_filtering(
@@ -124,17 +113,6 @@ class TestSteamReview:
         [
             (["review_score"], ["review_score"]),
             (["review_score", "invalid_label"], ["review_score"]),
-            (
-                ["total_reviews", "review_score", "invalid_label"],
-                ["review_score", "total_reviews"],
-            ),
-            (["invalid_label"], []),
-        ],
-        ids=[
-            "normal_filtering",
-            "filtering_with_invalid_label",
-            "unordered_filtering_with_invalid_label",
-            "filtering_with_only_invalid_label",
         ],
     )
     def test_fetch_mode_summary_with_label_filtering(

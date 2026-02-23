@@ -7,10 +7,17 @@ from pydantic import ValidationError
 
 from gameinsights.model.game_data import GameDataModel
 
-Expectation = Callable[[Any], None] | Any
 
+def assert_game_data_values(
+    model: GameDataModel, expectations: dict[str, Any | Callable[[Any], None]]
+) -> None:
+    """Assert model fields match expected values or pass callable validators.
 
-def assert_game_data_values(model: GameDataModel, expectations: dict[str, Expectation]) -> None:
+    Args:
+        model: The GameDataModel instance to validate
+        expectations: Dict mapping field names to either expected values or
+            callable validators that receive the field value
+    """
     for field, expected in expectations.items():
         value = getattr(model, field)
         if callable(expected):
@@ -132,6 +139,9 @@ class TestGameDataModel:
         # check the length of the recap data
         assert len(recap_data) == len(game_data._RECAP_FIELDS)
         assert "count_retired" not in recap_data  # this field should not be in recap data
+        # Verify that fields marked with exclude=True are not in recap
+        assert "discount" not in recap_data
+        assert "average_playtime_h" not in recap_data
 
     def test_game_data_model_dump_json_is_serializable(self):
         """Verify model_dump(mode="json") produces valid JSON-serializable output."""

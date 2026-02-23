@@ -347,3 +347,83 @@ def collector_with_one_failed_source(mock_request_response, monkeypatch, request
         mock_request_response(target_class=source_cls, **kwargs["mock_kwargs"])
 
     return Collector()
+
+
+@pytest.fixture
+def without_pandas(monkeypatch):
+    """Mock context that prevents pandas from being imported.
+
+    Use this fixture to test behavior when pandas is not installed.
+    This replaces the duplicate mock_import pattern across multiple test files.
+
+    Clears sys.modules["pandas"] so the import hook is actually triggered
+    even if pandas was already imported in this process.
+    """
+    import builtins
+    import sys
+    from unittest.mock import patch
+
+    # Remove cached pandas module so Python calls __import__ instead of
+    # returning the cached module from sys.modules.
+    monkeypatch.delitem(sys.modules, "pandas", raising=False)
+
+    original_import = builtins.__import__
+
+    def mock_import(name, *args, **kwargs):
+        if name == "pandas":
+            raise ImportError("No module named 'pandas'")
+        return original_import(name, *args, **kwargs)
+
+    with patch("builtins.__import__", side_effect=mock_import):
+        yield
+
+
+# Test helper functions
+
+
+def assert_list_not_tuple(data, expected_len=None):
+    """Helper to assert data is a list (not tuple) and optionally check length.
+
+    Args:
+        data: The data to check
+        expected_len: Optional expected length of the list
+
+    Raises:
+        AssertionError: If data is not a list, is a tuple, or length doesn't match
+    """
+    assert isinstance(data, list), f"Expected list, got {type(data)}"
+    assert not isinstance(data, tuple), "Data should not be a tuple"
+    if expected_len is not None:
+        assert len(data) == expected_len, f"Expected length {expected_len}, got {len(data)}"
+
+
+def assert_fetch_result(
+    result,
+    identifier,
+    success=True,
+    data_not_none=True,
+    error_is_none=True,
+):
+    """Helper to assert FetchResult properties.
+
+    Args:
+        result: The FetchResult to validate
+        identifier: Expected identifier value
+        success: Expected success status (default True)
+        data_not_none: Whether data should be not None (default True)
+        error_is_none: Whether error should be None (default True)
+
+    Raises:
+        AssertionError: If any assertion fails
+    """
+    from gameinsights.collector import FetchResult
+
+    assert isinstance(result, FetchResult), f"Expected FetchResult, got {type(result)}"
+    assert (
+        result.identifier == identifier
+    ), f"Expected identifier '{identifier}', got '{result.identifier}'"
+    assert result.success is success, f"Expected success={success}, got {result.success}"
+    if data_not_none:
+        assert result.data is not None, "Expected data to not be None"
+    if error_is_none:
+        assert result.error is None, f"Expected error to be None, got: {result.error}"

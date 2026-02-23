@@ -11,7 +11,6 @@ class TestCLIPandasOptional:
 
     def test_csv_output_with_list_data_works_without_pandas(self, capsys, monkeypatch):
         """Test that CSV output works without pandas when input is list of dicts."""
-        # Mock pandas import to fail
         original_import = builtins.__import__
 
         def mock_import(name, *args, **kwargs):
@@ -22,8 +21,7 @@ class TestCLIPandasOptional:
         monkeypatch.setattr(builtins, "__import__", mock_import)
 
         # Force reimport of cli module without pandas
-        if "gameinsights.cli" in sys.modules:
-            del sys.modules["gameinsights.cli"]
+        monkeypatch.delitem(sys.modules, "gameinsights.cli", raising=False)
 
         from gameinsights.cli import _output_data
 
@@ -51,9 +49,7 @@ class TestCLIPandasOptional:
 
         monkeypatch.setattr(builtins, "__import__", mock_import)
 
-        # Remove cached import
-        if "gameinsights.cli" in sys.modules:
-            del sys.modules["gameinsights.cli"]
+        monkeypatch.delitem(sys.modules, "gameinsights.cli", raising=False)
 
         from gameinsights.cli import _output_data
 
@@ -84,9 +80,7 @@ class TestCLIPandasOptional:
 
         monkeypatch.setattr(builtins, "__import__", mock_import)
 
-        # Remove cached import
-        if "gameinsights.cli" in sys.modules:
-            del sys.modules["gameinsights.cli"]
+        monkeypatch.delitem(sys.modules, "gameinsights.cli", raising=False)
 
         from gameinsights.cli import _output_data
 
@@ -108,9 +102,7 @@ class TestCLIPandasOptional:
 
         monkeypatch.setattr(builtins, "__import__", mock_import)
 
-        # Remove cached import
-        if "gameinsights.cli" in sys.modules:
-            del sys.modules["gameinsights.cli"]
+        monkeypatch.delitem(sys.modules, "gameinsights.cli", raising=False)
 
         from gameinsights.cli import _output_data
 
