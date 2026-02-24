@@ -82,7 +82,7 @@ def _output_data(
         else:
             json_payload = data if isinstance(data, list) else []
 
-        rendered = json.dumps(json_payload, indent=2, default=str)
+        rendered = json.dumps(json_payload, indent=2)
         if output_path:
             destination = Path(output_path)
             destination.parent.mkdir(parents=True, exist_ok=True)
@@ -236,8 +236,10 @@ def _run_collect(args: argparse.Namespace) -> int:
                 print("Active player mode requires the steamcharts source.", file=sys.stderr)
                 return 1
 
-            frame = collector.get_games_active_player_data(steam_appids, verbose=verbose)
-            _output_data(frame, args.format, args.output)  # type: ignore[arg-type]
+            records = collector.get_games_active_player_data(
+                steam_appids, verbose=verbose, return_as="list"
+            )
+            _output_data(records, args.format, args.output)  # type: ignore[arg-type]
             return 0
 
         records = collector.get_games_data(steam_appids, recap=args.recap, verbose=verbose)

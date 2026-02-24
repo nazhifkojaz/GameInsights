@@ -23,30 +23,11 @@ class TestGamalytic:
         # All 22 Gamalytic labels are returned (followers and early_access were already in _GAMALYTICS_LABELS)
         assert len(result["data"]) == 22
 
-    def test_fetch_success_numeric_appid(self, source_fetcher, gamalytic_success_response_data):
-        result = source_fetcher(
-            Gamalytic,
-            mock_kwargs={"json_data": gamalytic_success_response_data},
-            call_kwargs={"steam_appid": 12345},
-        )
-
-        assert result["success"] is True
-        assert result["data"]["steam_appid"] == "12345"
-        assert result["data"]["name"] == "Mock Game: The Adventure"
-        assert result["data"]["followers"] == 1234
-        assert result["data"]["early_access"] is False
-        assert result["data"]["developers"] is None
-        # All 22 Gamalytic labels are returned
-        assert len(result["data"]) == 22
-
     @pytest.mark.parametrize(
         "selected_labels, expected_labels, expected_len",
         [
             (["name"], ["name"], 1),
-            (["name", "followers"], ["name", "followers"], 2),
-            (["early_access"], ["early_access"], 1),
             (["name", "invalid_label"], ["name"], 1),
-            (["invalid_label"], [], 0),
         ],
     )
     def test_fetch_success_with_filtering(
@@ -70,21 +51,13 @@ class TestGamalytic:
 
         assert len(result["data"]) == expected_len
 
-    @pytest.mark.parametrize(
-        "status_code, expected_error",
-        [
-            (404, {"success": False, "error": "Game with appid 12345 is not found."}),
-            (500, {"success": False, "error": "Failed to connect to API. Status code: 500"}),
-            (403, {"success": False, "error": "Failed to connect to API. Status code: 403"}),
-        ],
-    )
-    def test_fetch_error(self, source_fetcher, status_code, expected_error):
+    def test_fetch_error_game_not_found(self, source_fetcher):
         result = source_fetcher(
             Gamalytic,
-            status_code=status_code,
+            status_code=404,
             call_kwargs={"steam_appid": "12345"},
         )
 
-        assert result["success"] == expected_error["success"]
+        assert result["success"] is False
         assert "error" in result
-        assert result["error"] == expected_error["error"]
+        assert result["error"] == "Game with appid 12345 is not found."

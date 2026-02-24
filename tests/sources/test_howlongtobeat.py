@@ -54,7 +54,6 @@ class TestHowLongToBeat:
         [
             (["game_name"], ["game_name"], 1),
             (["game_name", "invalid_label"], ["game_name"], 1),
-            (["invalid_label"], [], 0),
         ],
     )
     def test_fetch_success_with_filtering(

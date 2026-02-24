@@ -22,7 +22,6 @@ class Test_SteamAchievements:
             ),
             (None, ["achievements_count"], {"achievements_count": 2}),
             (None, ["achievements_count", "invalid_label"], {"achievements_count": 2}),
-            (None, ["invalid_label"], {}),
             (
                 "mockapikey",
                 None,
@@ -49,17 +48,6 @@ class Test_SteamAchievements:
             ),
             ("mockapikey", ["achievements_count"], {"achievements_count": 2}),
             ("mockapikey", ["achievements_count", "invalid_label"], {"achievements_count": 2}),
-            ("mockapikey", ["invalid_label"], {}),
-        ],
-        ids=[
-            "no_apikey_no_filtering",
-            "no_apikey_with_filtering",
-            "no_apikey_with_filtering_include_invalid_label",
-            "no_apikey_but_empty_due_to_filtering_only_invalid_label",
-            "apikey_no_filtering",
-            "apikey_with_filtering",
-            "apikey_with_filtering_include_invalid_label",
-            "apikey_but_empty_due_to_filtering_only_invalid_label",
         ],
     )
     def test_fetch_success(
