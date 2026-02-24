@@ -20,14 +20,16 @@ def reload_and_restore_metrics(monkeypatch):
     This fixture ensures test isolation by:
     1. Capturing the original metrics module state and env var value
     2. Unsetting GAMEINSIGHTS_METRICS and reloading the module
-    3. Restoring the original env var and module state after the test
+    3. Reloading gameinsights.utils to rebind the new metrics instance
+    4. Restoring the original env var and module state after the test
     """
     import importlib
     import os
     import sys
 
-    # Capture the original module if it exists
-    original_module = sys.modules.get("gameinsights.utils.metrics")
+    # Capture the original modules
+    original_metrics_module = sys.modules.get("gameinsights.utils.metrics")
+    original_utils_module = sys.modules.get("gameinsights.utils")
 
     # Capture the original env var value
     original_env_value = os.environ.get("GAMEINSIGHTS_METRICS")
@@ -39,23 +41,30 @@ def reload_and_restore_metrics(monkeypatch):
     if "gameinsights.utils.metrics" in sys.modules:
         importlib.reload(sys.modules["gameinsights.utils.metrics"])
 
+    # Reload gameinsights.utils to rebind the new metrics instance
+    # This is necessary because gameinsights.utils imports metrics at module level
+    if "gameinsights.utils" in sys.modules:
+        importlib.reload(sys.modules["gameinsights.utils"])
+
     yield
 
-    # Teardown: restore the original env var first, before reloading module
+    # Teardown: restore the original env var first, before reloading modules
     if original_env_value is not None:
         os.environ["GAMEINSIGHTS_METRICS"] = original_env_value
     else:
         os.environ.pop("GAMEINSIGHTS_METRICS", None)
 
-    # Now restore the original module state with the correct env in place
-    if original_module is not None:
-        # Restore the original module
-        sys.modules["gameinsights.utils.metrics"] = original_module
-        # Reload with the original env var value restored
-        importlib.reload(original_module)
-    else:
-        # If there was no original module, remove the reloaded one
-        sys.modules.pop("gameinsights.utils.metrics", None)
+    # Restore the original module state with the correct env in place
+    if original_metrics_module is not None:
+        sys.modules["gameinsights.utils.metrics"] = original_metrics_module
+    if original_utils_module is not None:
+        sys.modules["gameinsights.utils"] = original_utils_module
+
+    # Reload with the original env var value restored
+    if original_utils_module is not None:
+        importlib.reload(original_utils_module)
+    elif original_metrics_module is not None:
+        importlib.reload(original_metrics_module)
 
 
 class TestCollectorMetrics:
