@@ -123,11 +123,14 @@ class TestCollectorMetrics:
     def test_metrics_with_exception(self, collector_with_mocked_metrics, mock_metrics):
         """Test metrics emission when source raises an exception."""
         # Mock a source that raises an exception and verify it's re-raised
-        with patch.object(
-            collector_with_mocked_metrics.steamstore,
-            "fetch",
-            side_effect=ConnectionError("Network error"),
-        ), pytest.raises(ConnectionError):
+        with (
+            patch.object(
+                collector_with_mocked_metrics.steamstore,
+                "fetch",
+                side_effect=ConnectionError("Network error"),
+            ),
+            pytest.raises(ConnectionError),
+        ):
             collector_with_mocked_metrics._fetch_with_observability(
                 collector_with_mocked_metrics.steamstore,
                 identifier="12345",
