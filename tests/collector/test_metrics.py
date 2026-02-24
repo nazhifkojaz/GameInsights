@@ -18,15 +18,19 @@ def reload_and_restore_metrics(monkeypatch):
     """Reload metrics module with GAMEINSIGHTS_METRICS unset and restore on teardown.
 
     This fixture ensures test isolation by:
-    1. Capturing the original metrics module state
+    1. Capturing the original metrics module state and env var value
     2. Unsetting GAMEINSIGHTS_METRICS and reloading the module
-    3. Restoring the original module state after the test
+    3. Restoring the original env var and module state after the test
     """
     import importlib
+    import os
     import sys
 
     # Capture the original module if it exists
     original_module = sys.modules.get("gameinsights.utils.metrics")
+
+    # Capture the original env var value
+    original_env_value = os.environ.get("GAMEINSIGHTS_METRICS")
 
     # Ensure metrics are disabled by unsetting the environment variable
     monkeypatch.delenv("GAMEINSIGHTS_METRICS", raising=False)
@@ -37,11 +41,17 @@ def reload_and_restore_metrics(monkeypatch):
 
     yield
 
-    # Teardown: restore the original module state
+    # Teardown: restore the original env var first, before reloading module
+    if original_env_value is not None:
+        os.environ["GAMEINSIGHTS_METRICS"] = original_env_value
+    else:
+        os.environ.pop("GAMEINSIGHTS_METRICS", None)
+
+    # Now restore the original module state with the correct env in place
     if original_module is not None:
         # Restore the original module
         sys.modules["gameinsights.utils.metrics"] = original_module
-        # Also reload to ensure the module's internal state is restored
+        # Reload with the original env var value restored
         importlib.reload(original_module)
     else:
         # If there was no original module, remove the reloaded one
@@ -112,21 +122,18 @@ class TestCollectorMetrics:
 
     def test_metrics_with_exception(self, collector_with_mocked_metrics, mock_metrics):
         """Test metrics emission when source raises an exception."""
-        # Mock a source that raises an exception
+        # Mock a source that raises an exception and verify it's re-raised
         with patch.object(
             collector_with_mocked_metrics.steamstore,
             "fetch",
             side_effect=ConnectionError("Network error"),
-        ):
-            try:
-                collector_with_mocked_metrics._fetch_with_observability(
-                    collector_with_mocked_metrics.steamstore,
-                    identifier="12345",
-                    scope="id",
-                    verbose=False,
-                )
-            except ConnectionError:
-                pass  # Exception is re-raised
+        ), pytest.raises(ConnectionError):
+            collector_with_mocked_metrics._fetch_with_observability(
+                collector_with_mocked_metrics.steamstore,
+                identifier="12345",
+                scope="id",
+                verbose=False,
+            )
 
         # Verify exception metrics were emitted
         assert mock_metrics["counter"].called
