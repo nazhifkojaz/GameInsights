@@ -1,0 +1,31 @@
+name: Bot CI
+
+on:
+  push:
+    branches: [main]
+    paths: ["bot/**"]
+  pull_request:
+    paths: ["bot/**"]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: bot
+    steps:
+    - uses: actions/checkout@v4
+    - name: Install uv
+      uses: astral-sh/setup-uv@v5
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version-file: "bot/pyproject.toml"
+    - name: Install the project
+      run: uv sync --all-extras --dev
+    - name: Run Ruff
+      run: uv run ruff check app/ tests/
+    - name: Run Black
+      run: uv run black --check app/ tests/
+    - name: Run Pytest
+      run: uv run pytest -vv tests/

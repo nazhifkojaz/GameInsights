@@ -1,0 +1,29 @@
+[project]
+name = "api"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "cachetools>=7.0.1",
+    "fastapi>=0.133.0",
+    "gameinsights",
+    "pydantic-settings>=2.13.1",
+    "uvicorn>=0.41.0",
+]
+
+[dependency-groups]
+dev = [
+    "black>=26.1.0",
+    "httpx>=0.28.1",
+    "mypy>=1.19.1",
+    "pytest>=9.0.2",
+    "pytest-asyncio>=1.3.0",
+    "ruff>=0.15.2",
+    "types-cachetools>=6.2.0.20251022",
+]
+
+[tool.uv.sources]
+gameinsights = { git = "https://github.com/nazhifkojaz/gameinsights.git", rev = "main" }
+[tool.mypy]
+ignore_missing_imports = true
