@@ -1,23 +1,28 @@
 import asyncio
 from typing import Any
+
 from fastapi import APIRouter, Depends
 
-from app.dependencies import get_pool, get_cache, get_settings
 from app.collector_pool import CollectorPool
-from app.cache import ResponseCache
 from app.config import Settings
+from app.constants import Endpoint
+from app.db_cache import DatabaseCache
+from app.dependencies import get_cache, get_pool, get_settings
+from app.schemas.users import UserResponse
 
 router = APIRouter(prefix="/users", tags=["users"])
 
 
-@router.get("/{steamid}")
+@router.get("/{steamid}", response_model=list[UserResponse])
 async def get_user(
     steamid: str,
     pool: CollectorPool = Depends(get_pool),
-    cache: ResponseCache = Depends(get_cache),
+    cache: DatabaseCache = Depends(get_cache),
     settings: Settings = Depends(get_settings),
 ) -> list[dict[str, Any]]:
-    cache_key = cache.make_key("user", steamid, settings.region, settings.language)
+    cache_key = cache.make_key(
+        Endpoint.USER, steamid, settings.region, settings.language
+    )
     cached = await cache.get(cache_key)
     if cached is not None:
         return cached
@@ -33,5 +38,7 @@ async def get_user(
         # based on gameinsights' underlying behavior
         return []
 
-    await cache.set(cache_key, results)
+    await cache.set(
+        cache_key, Endpoint.USER, steamid, settings.region, settings.language, results
+    )
     return results

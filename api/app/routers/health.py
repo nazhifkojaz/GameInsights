@@ -3,11 +3,12 @@ from typing import Any
 from app.dependencies import get_pool, get_settings
 from app.collector_pool import CollectorPool
 from app.config import Settings
+from app.schemas.health import HealthCheckResponse
 
 router = APIRouter(prefix="/health", tags=["health"])
 
 
-@router.get("")
+@router.get("", response_model=HealthCheckResponse)
 async def health_check(
     pool: CollectorPool = Depends(get_pool),
     settings: Settings = Depends(get_settings),

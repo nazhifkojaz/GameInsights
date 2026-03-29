@@ -17,8 +17,11 @@ _EXCEPTION_MAP: dict[type[GameInsightsError], tuple[int, str]] = {
 
 
 async def gameinsights_exception_handler(
-    request: Request, exc: GameInsightsError
+    request: Request, exc: Exception
 ) -> JSONResponse:
+    if not isinstance(exc, GameInsightsError):
+        raise
+
     status_code, error_type = _EXCEPTION_MAP.get(type(exc), (500, "internal_error"))
     body: dict = {"error": error_type, "message": str(exc)}
 
