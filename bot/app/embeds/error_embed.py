@@ -1,8 +1,30 @@
-import discord
 from typing import Any
+
+import discord
 
 
 def build_error_embed(error_data: dict[str, Any]) -> discord.Embed:
+    """Build a Discord embed for error messages.
+
+    Creates an embed with appropriate color based on error type,
+    including error message and optional identifier/source information.
+
+    Args:
+        error_data: Dictionary containing error details with keys:
+            - error: Error type string
+            - message: Human-readable error message
+            - identifier: Optional identifier for the resource
+            - source: Optional source information
+
+    Returns:
+        A discord.Embed object formatted with error information.
+
+    Example:
+        >>> data = {"error": "not_found", "message": "Game not found", "identifier": "123"}
+        >>> embed = build_error_embed(data)
+        >>> embed.title
+        'Error'
+    """
     error_type = error_data.get("error", "unknown_error")
     message = error_data.get("message", "An unknown error occurred.")
 
