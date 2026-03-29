@@ -1,0 +1,31 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.mypy_cache/
+
+# Virtual environments
+.venv/
+
+# Environment files
+.env
+.env.*
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Local-only docs
+docs/
+
+# Screenshots / mockups
+*.png
+
+# Tool caches
+.ruff_cache/
+.pytest_cache/
+.coverage
+htmlcov/
+.superpowers/
