@@ -1,6 +1,6 @@
 import pytest
 
-from gameinsights.sources.howlongtobeat import HowLongToBeat
+from gameinsights.sources.howlongtobeat import HowLongToBeat, _SearchAuth
 
 
 class TestHowLongToBeat:
@@ -9,8 +9,8 @@ class TestHowLongToBeat:
     def mock_search_methods(self, monkeypatch):
         """Mock the search methods for testing."""
 
-        def mock_get_token(*args, **kwargs):
-            return "mock_token"
+        def mock_get_auth(*args, **kwargs):
+            return _SearchAuth(token="mock_token", hp_key="hpKey", hp_val="mock_val", extras={})
 
         def mock_fetch_search(*args, **kwargs):
             # Return mock response for search
@@ -28,7 +28,7 @@ class TestHowLongToBeat:
                 "comp_main_avg": 12000,  # Will be converted to 200 mins
             }
 
-        monkeypatch.setattr(HowLongToBeat, "_get_search_token", mock_get_token)
+        monkeypatch.setattr(HowLongToBeat, "_get_search_auth", mock_get_auth)
         monkeypatch.setattr(HowLongToBeat, "_fetch_search_results", mock_fetch_search)
         monkeypatch.setattr(HowLongToBeat, "_fetch_game_page", mock_fetch_page)
 
@@ -92,12 +92,12 @@ class TestHowLongToBeat:
         assert "error" in result
         assert result["error"] == "Game is not found."
 
-    def test_fetch_error_on_token_failure(self, monkeypatch):
+    def test_fetch_error_on_auth_failure(self, monkeypatch):
 
         def mock_method(*args, **kwargs):
             return None
 
-        monkeypatch.setattr(HowLongToBeat, "_get_search_token", mock_method)
+        monkeypatch.setattr(HowLongToBeat, "_get_search_auth", mock_method)
 
         source = HowLongToBeat()
         result = source.fetch(game_name="mock_data")

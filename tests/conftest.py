@@ -189,12 +189,13 @@ def collector_with_mocks(mock_request_response, monkeypatch, request):
         SteamSpy,
         SteamStore,
     )
+    from gameinsights.sources.howlongtobeat import _SearchAuth
 
-    # Mock the HowLongToBeat token method
-    def mock_get_token(*args, **kwargs):
-        return "mock_token"
+    # Mock the HowLongToBeat auth method
+    def mock_get_auth(*args, **kwargs):
+        return _SearchAuth(token="mock_token", hp_key="hpKey", hp_val="mock_val", extras={})
 
-    monkeypatch.setattr(HowLongToBeat, "_get_search_token", mock_get_token)
+    monkeypatch.setattr(HowLongToBeat, "_get_search_auth", mock_get_auth)
 
     sources_payloads = [
         (
@@ -280,12 +281,13 @@ def collector_with_one_failed_source(mock_request_response, monkeypatch, request
         SteamSpy,
         SteamStore,
     )
+    from gameinsights.sources.howlongtobeat import _SearchAuth
 
-    # Mock the HowLongToBeat token method
-    def mock_get_token(*args, **kwargs):
-        return "mock_token"
+    # Mock the HowLongToBeat auth method
+    def mock_get_auth(*args, **kwargs):
+        return _SearchAuth(token="mock_token", hp_key="hpKey", hp_val="mock_val", extras={})
 
-    monkeypatch.setattr(HowLongToBeat, "_get_search_token", mock_get_token)
+    monkeypatch.setattr(HowLongToBeat, "_get_search_auth", mock_get_auth)
 
     sources_payloads = [
         (

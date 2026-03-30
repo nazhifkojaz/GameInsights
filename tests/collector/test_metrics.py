@@ -5,12 +5,19 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from gameinsights.sources import HowLongToBeat
+from gameinsights.sources.howlongtobeat import _SearchAuth
 
 
 @pytest.fixture(autouse=True)
 def _mock_hltb_token(monkeypatch):
     """Centralized mock for HowLongToBeat token to reduce repetition."""
-    monkeypatch.setattr(HowLongToBeat, "_get_search_token", lambda *a, **kw: "mock_token")
+    monkeypatch.setattr(
+        HowLongToBeat,
+        "_get_search_auth",
+        lambda *a, **kw: _SearchAuth(
+            token="mock_token", hp_key="hpKey", hp_val="mock_val", extras={}
+        ),
+    )
 
 
 @pytest.fixture

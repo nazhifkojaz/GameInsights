@@ -3,6 +3,7 @@
 import pytest
 
 from gameinsights import Collector
+from gameinsights.sources.howlongtobeat import _SearchAuth
 
 
 @pytest.fixture(autouse=True)
@@ -10,7 +11,13 @@ def _mock_hltb_token(monkeypatch):
     """Centralized mock for HowLongToBeat token to avoid repetition."""
     from gameinsights.sources import HowLongToBeat
 
-    monkeypatch.setattr(HowLongToBeat, "_get_search_token", lambda *a, **kw: "mock_token")
+    monkeypatch.setattr(
+        HowLongToBeat,
+        "_get_search_auth",
+        lambda *a, **kw: _SearchAuth(
+            token="mock_token", hp_key="hpKey", hp_val="mock_val", extras={}
+        ),
+    )
 
 
 class TestCollectorProperties:

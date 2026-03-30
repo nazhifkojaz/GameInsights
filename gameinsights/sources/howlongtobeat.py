@@ -7,8 +7,8 @@
 # Please respect their service and consider using official APIs if available.
 #
 # API Strategy:
-# 1. GET /api/finder/init - Obtain session token
-# 2. POST /api/finder with x-auth-token header - Search for games
+# 1. GET /api/find/init - Obtain session token and auth params
+# 2. POST /api/find with x-auth-token + x-hp-key/x-hp-val headers - Search for games
 # 3. GET /game/{id} and parse __NEXT_DATA__ - Get full data
 #
 # Data Attribution: Completion times are sourced from howlongtobeat.com
@@ -16,12 +16,27 @@
 
 import json
 import re
-from typing import Any, cast
+from typing import Any, NamedTuple, cast
 
 import requests
 
 from gameinsights.sources.base import SYNTHETIC_ERROR_CODE, BaseSource, SourceResult, SuccessResult
 from gameinsights.utils.ratelimit import logged_rate_limited
+
+
+class _SearchAuth(NamedTuple):
+    """Authentication data extracted from HLTB init endpoint.
+
+    Known fields (token, hp_key, hp_val) are explicit for clarity.
+    The extras dict carries any future auth fields HLTB adds to the
+    init response, forwarding them automatically to search requests.
+    """
+
+    token: str
+    hp_key: str  # value of hpKey from init response (used as body field name)
+    hp_val: str  # value of hpVal from init response
+    extras: dict[str, str]  # any additional non-token string fields
+
 
 _HOWLONGTOBEAT_LABELS = (
     "game_id",
@@ -53,8 +68,8 @@ class HowLongToBeat(BaseSource):
     """HowLongToBeat source for fetching game completion times.
 
     The source uses a three-step approach:
-    1. Fetch a session token from /api/search/init
-    2. Search for games using /api/search with x-auth-token header
+    1. Fetch session token and auth params from /api/find/init
+    2. Search for games using /api/find with auth headers
     3. Fetch full game data from /game/{id} and parse __NEXT_DATA__
     """
 
@@ -95,13 +110,13 @@ class HowLongToBeat(BaseSource):
             verbose=verbose,
         )
 
-        # Step 1: Get session token
-        token = self._get_search_token()
-        if not token:
+        # Step 1: Get session auth (token + dynamic params)
+        auth = self._get_search_auth()
+        if not auth:
             return self._build_error_result("Failed to obtain search token.", verbose=verbose)
 
         # Step 2: Search for the game
-        search_response = self._fetch_search_results(game_name, token)
+        search_response = self._fetch_search_results(game_name, auth)
         if not search_response:
             return self._build_error_result("Failed to fetch data.", verbose=verbose)
 
@@ -145,11 +160,11 @@ class HowLongToBeat(BaseSource):
 
         return SuccessResult(success=True, data=data_packed)
 
-    def _get_search_token(self) -> str | None:
-        """Fetch a search token from the init endpoint.
+    def _get_search_auth(self) -> _SearchAuth | None:
+        """Fetch auth data from the init endpoint.
 
         Returns:
-            The session token string, or None if fetching failed.
+            _SearchAuth with token and auth params, or None if fetching failed.
         """
         headers = {
             "Accept": "*/*",
@@ -159,34 +174,63 @@ class HowLongToBeat(BaseSource):
             "Sec-Fetch-Site": "same-origin",
         }
 
-        response = self._make_request(self.BASE_URL + "api/finder/init", headers=headers)
+        response = self._make_request(self.BASE_URL + "api/find/init", headers=headers)
 
         if response and response.status_code == 200:
             try:
                 data: dict[str, Any] = response.json()
                 token = data.get("token")
-                return cast(str, token) if token is not None else None
+                if token is None:
+                    self.logger.log(
+                        "HLTB init response missing token",
+                        level="error",
+                        verbose=True,
+                    )
+                    return None
+
+                hp_key = data.get("hpKey")
+                hp_val = data.get("hpVal")
+                if hp_key is None or hp_val is None:
+                    self.logger.log(
+                        "HLTB init response missing hpKey or hpVal",
+                        level="error",
+                        verbose=True,
+                    )
+                    return None
+
+                # Collect any additional string fields for forward compatibility
+                known_keys = {"token", "hpKey", "hpVal"}
+                extras = {
+                    k: v for k, v in data.items() if k not in known_keys and isinstance(v, str)
+                }
+
+                return _SearchAuth(
+                    token=cast(str, token),
+                    hp_key=cast(str, hp_key),
+                    hp_val=cast(str, hp_val),
+                    extras=extras,
+                )
             except (json.JSONDecodeError, KeyError) as e:
                 self.logger.log(
-                    f"HLTB token parsing failed: {e}",
+                    f"HLTB auth parsing failed: {e}",
                     level="error",
                     verbose=True,
                 )
         else:
             self.logger.log(
-                f"HLTB token request failed with status {response.status_code if response else 'no response'}",
+                f"HLTB auth request failed with status {response.status_code if response else 'no response'}",
                 level="error",
                 verbose=True,
             )
 
         return None
 
-    def _fetch_search_results(self, game_name: str, token: str) -> requests.Response | None:
+    def _fetch_search_results(self, game_name: str, auth: _SearchAuth) -> requests.Response | None:
         """Send a search request to HowLongToBeat.
 
         Args:
             game_name: The name of the game to search for.
-            token: The session token from init endpoint.
+            auth: The auth data from init endpoint.
 
         Returns:
             The response object if successful, None otherwise.
@@ -199,14 +243,23 @@ class HowLongToBeat(BaseSource):
             "Sec-Fetch-Mode": "cors",
             "Sec-Fetch-Site": "same-origin",
             "Origin": self.BASE_URL.rstrip("/"),
-            "x-auth-token": token,
+            "x-auth-token": auth.token,
+            "x-hp-key": auth.hp_key,
+            "x-hp-val": auth.hp_val,
         }
+        # Forward any unknown future fields as headers
+        headers.update({f"x-{k.lower()}": v for k, v in auth.extras.items()})
+
+        payload = self._generate_search_payload(game_name)
+        # Inject hp fields and any extras into the body
+        payload[auth.hp_key] = auth.hp_val
+        payload.update(auth.extras)
 
         response = self._make_request(
-            url=self.BASE_URL + "api/finder",
+            url=self.BASE_URL + "api/find",
             method="POST",
             headers=headers,
-            json=self._generate_search_payload(game_name),
+            json=payload,
         )
 
         # Return None on synthetic errors (connection/timeout failures)

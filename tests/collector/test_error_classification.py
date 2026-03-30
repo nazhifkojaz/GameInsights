@@ -10,6 +10,7 @@ from gameinsights import (
     SourceUnavailableError,
 )
 from gameinsights.sources import HowLongToBeat
+from gameinsights.sources.howlongtobeat import _SearchAuth
 
 
 class TestCollectorErrorClassification:
@@ -105,7 +106,13 @@ class TestRaiseForFetchFailure:
 
     @pytest.fixture(autouse=True)
     def _mock_hltb_token(self, monkeypatch):
-        monkeypatch.setattr(HowLongToBeat, "_get_search_token", lambda *a, **kw: "mock_token")
+        monkeypatch.setattr(
+            HowLongToBeat,
+            "_get_search_auth",
+            lambda *a, **kw: _SearchAuth(
+                token="mock_token", hp_key="hpKey", hp_val="mock_val", extras={}
+            ),
+        )
 
     def test_primary_source_not_found_raises_game_not_found(self):
         """Test primary source 'not found' raises GameNotFoundError."""
@@ -145,7 +152,13 @@ class TestRaiseOnErrorParameter:
 
     @pytest.fixture(autouse=True)
     def _mock_hltb_token(self, monkeypatch):
-        monkeypatch.setattr(HowLongToBeat, "_get_search_token", lambda *a, **kw: "mock_token")
+        monkeypatch.setattr(
+            HowLongToBeat,
+            "_get_search_auth",
+            lambda *a, **kw: _SearchAuth(
+                token="mock_token", hp_key="hpKey", hp_val="mock_val", extras={}
+            ),
+        )
 
     def test_get_games_data_empty_input_with_raise_on_error(self):
         """Test get_games_data with empty input and raise_on_error=True."""
