@@ -14,6 +14,7 @@ _STEAMSPY_LABELS = (
     "negative_reviews",
     "owners",
     "average_forever",
+    "average_playtime_min",
     "average_2weeks",
     "median_forever",
     "median_2weeks",
@@ -85,6 +86,16 @@ class SteamSpy(BaseSource):
         # repack / process the data if needed
         tags = data.get("tags", [])
         tags = [tag for tag, count in tags.items()] if isinstance(tags, dict) else []
+
+        # Split comma-separated languages string into a proper list
+        raw_languages = data.get("languages")
+        if isinstance(raw_languages, str):
+            languages = [lang.strip() for lang in raw_languages.split(",") if lang.strip()]
+        elif isinstance(raw_languages, list):
+            languages = raw_languages
+        else:
+            languages = []
+
         return {
             "steam_appid": data.get("appid", None),
             "name": data.get("name", None),
@@ -94,6 +105,7 @@ class SteamSpy(BaseSource):
             "negative_reviews": data.get("negative", None),
             "owners": data.get("owners", None),
             "average_forever": data.get("average_forever", None),
+            "average_playtime_min": data.get("average_forever", None),
             "average_2weeks": data.get("average_2weeks", None),
             "median_forever": data.get("median_forever", None),
             "median_2weeks": data.get("median_2weeks", None),
@@ -101,7 +113,7 @@ class SteamSpy(BaseSource):
             "initial_price": data.get("initialprice", None),
             "discount": data.get("discount", None),
             "ccu": data.get("ccu", None),
-            "languages": data.get("languages", None),
+            "languages": languages,
             "genres": data.get("genre", None),
             "tags": tags,
         }

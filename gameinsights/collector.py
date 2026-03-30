@@ -69,6 +69,7 @@ class Collector:
         language: str = "english",
         steam_api_key: str | None = None,
         gamalytic_api_key: str | None = None,
+        boxleiter_multiplier: int = 30,
         calls: int = 60,
         period: int = 60,
     ) -> None:
@@ -79,6 +80,9 @@ class Collector:
             language: Language for the API request. Default is "english".
             steam_api_key: Optional API key for Steam API.
             gamalytic_api_key: Optional API key for Gamalytic API.
+                Currently unused (Gamalytic source disabled).
+            boxleiter_multiplier: Multiplier for Boxleiter sales estimation.
+                Default is 30 (typical modern median for post-2020 games).
             calls: Max number of API calls allowed per period. Default is 60.
             period: Time period in seconds for the rate limit. Default is 60.
         """
@@ -86,6 +90,7 @@ class Collector:
         self._language = language
         self._steam_api_key = steam_api_key
         self._gamalytic_api_key = gamalytic_api_key
+        self._boxleiter_multiplier = boxleiter_multiplier
         self.calls = calls
         self.period = period
         self._closed = False
@@ -182,19 +187,24 @@ class Collector:
                 ],
                 is_primary=True,  # SteamStore is the primary source
             ),
+            # DISABLED: Gamalytic free endpoint removed. Re-enable by uncommenting
+            # when the endpoint is available again or a replacement is found.
+            # SourceConfig(
+            #     self.gamalytic,
+            #     [
+            #         "average_playtime_h",
+            #         "copies_sold",
+            #         "estimated_revenue",
+            #         "owners",
+            #         "languages",
+            #         "followers",
+            #         "early_access",
+            #     ],
+            # ),
             SourceConfig(
-                self.gamalytic,
-                [
-                    "average_playtime_h",
-                    "copies_sold",
-                    "estimated_revenue",
-                    "owners",
-                    "languages",
-                    "followers",
-                    "early_access",
-                ],
+                self.steamspy,
+                ["ccu", "tags", "discount", "average_playtime_min", "languages"],
             ),
-            SourceConfig(self.steamspy, ["ccu", "tags", "discount"]),
             SourceConfig(
                 self.steamcharts,
                 ["active_player_24h", "peak_active_player_all_time", "monthly_active_player"],
@@ -263,6 +273,38 @@ class Collector:
     @property
     def name_based_sources(self) -> list[SourceConfig]:
         return self._name_based_sources
+
+    @property
+    def boxleiter_multiplier(self) -> int:
+        return self._boxleiter_multiplier
+
+    def _post_process_raw_data(self, raw_data: dict[str, Any]) -> None:
+        """Derive fields that depend on aggregated data from multiple sources.
+
+        Called after all source fetches complete, before GameDataModel construction.
+        Mutates raw_data in place.
+
+        Derived fields:
+            - early_access: True if "Early Access" is in categories list
+            - copies_sold: Boxleiter estimate (total_reviews * multiplier) when not already set
+            - estimated_revenue: copies_sold * price_final when not already set
+        """
+        # Derive early_access from SteamStore categories
+        categories = raw_data.get("categories")
+        if isinstance(categories, list) and categories and raw_data.get("early_access") is None:
+            raw_data["early_access"] = "Early Access" in categories
+
+        # Boxleiter estimation — only when not already populated by a real source
+        if raw_data.get("copies_sold") is None:
+            total_reviews = raw_data.get("total_reviews")
+            if isinstance(total_reviews, (int, float)) and total_reviews > 0:
+                raw_data["copies_sold"] = int(total_reviews * self._boxleiter_multiplier)
+
+        if raw_data.get("estimated_revenue") is None:
+            copies_sold = raw_data.get("copies_sold")
+            price_final = raw_data.get("price_final")
+            if isinstance(copies_sold, (int, float)) and isinstance(price_final, (int, float)):
+                raw_data["estimated_revenue"] = int(copies_sold * price_final)
 
     @staticmethod
     def _classify_source_error(source_name: str, error_message: str) -> GameInsightsError:
@@ -829,6 +871,9 @@ class Collector:
                 )
                 if source_data["success"]:
                     raw_data.update({key: source_data["data"][key] for key in config.fields})
+
+        # Derive fields from aggregated source data (Boxleiter estimation, early_access, etc.)
+        self._post_process_raw_data(raw_data)
 
         return GameDataModel(**raw_data)
 
