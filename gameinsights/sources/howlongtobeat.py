@@ -19,6 +19,7 @@ import re
 from typing import Any, NamedTuple, cast
 
 import requests
+from fake_useragent import UserAgent
 
 from gameinsights.sources.base import SYNTHETIC_ERROR_CODE, BaseSource, SourceResult, SuccessResult
 from gameinsights.utils.ratelimit import logged_rate_limited
@@ -35,6 +36,7 @@ class _SearchAuth(NamedTuple):
     token: str
     hp_key: str  # value of hpKey from init response (used as body field name)
     hp_val: str  # value of hpVal from init response
+    user_agent: str  # UA used for the init request — must match in subsequent requests
     extras: dict[str, str]  # any additional non-token string fields
 
 
@@ -166,12 +168,14 @@ class HowLongToBeat(BaseSource):
         Returns:
             _SearchAuth with token and auth params, or None if fetching failed.
         """
+        ua = UserAgent().random
         headers = {
             "Accept": "*/*",
             "Referer": self.REFERER_HEADER,
             "Sec-Fetch-Dest": "empty",
             "Sec-Fetch-Mode": "cors",
             "Sec-Fetch-Site": "same-origin",
+            "User-Agent": ua,
         }
 
         response = self._make_request(self.BASE_URL + "api/find/init", headers=headers)
@@ -208,6 +212,7 @@ class HowLongToBeat(BaseSource):
                     token=cast(str, token),
                     hp_key=cast(str, hp_key),
                     hp_val=cast(str, hp_val),
+                    user_agent=ua,
                     extras=extras,
                 )
             except (json.JSONDecodeError, KeyError) as e:
@@ -243,6 +248,7 @@ class HowLongToBeat(BaseSource):
             "Sec-Fetch-Mode": "cors",
             "Sec-Fetch-Site": "same-origin",
             "Origin": self.BASE_URL.rstrip("/"),
+            "User-Agent": auth.user_agent,
             "x-auth-token": auth.token,
             "x-hp-key": auth.hp_key,
             "x-hp-val": auth.hp_val,

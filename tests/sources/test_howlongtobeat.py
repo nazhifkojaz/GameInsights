@@ -10,7 +10,13 @@ class TestHowLongToBeat:
         """Mock the search methods for testing."""
 
         def mock_get_auth(*args, **kwargs):
-            return _SearchAuth(token="mock_token", hp_key="hpKey", hp_val="mock_val", extras={})
+            return _SearchAuth(
+                token="mock_token",
+                hp_key="hpKey",
+                hp_val="mock_val",
+                user_agent="mock_ua",
+                extras={},
+            )
 
         def mock_fetch_search(*args, **kwargs):
             # Return mock response for search

@@ -81,7 +81,9 @@ class TestMultiAppidScenarios:
         monkeypatch.setattr(
             HowLongToBeat,
             "_get_search_auth",
-            lambda *args: _SearchAuth(token="token", hp_key="hpKey", hp_val="mock_val", extras={}),
+            lambda *args: _SearchAuth(
+                token="token", hp_key="hpKey", hp_val="mock_val", user_agent="mock_ua", extras={}
+            ),
         )
 
         collector = Collector()
@@ -96,7 +98,9 @@ class TestMultiAppidScenarios:
         monkeypatch.setattr(
             HowLongToBeat,
             "_get_search_auth",
-            lambda *args: _SearchAuth(token="token", hp_key="hpKey", hp_val="mock_val", extras={}),
+            lambda *args: _SearchAuth(
+                token="token", hp_key="hpKey", hp_val="mock_val", user_agent="mock_ua", extras={}
+            ),
         )
 
         collector = Collector()

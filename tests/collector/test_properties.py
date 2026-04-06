@@ -15,7 +15,7 @@ def _mock_hltb_token(monkeypatch):
         HowLongToBeat,
         "_get_search_auth",
         lambda *a, **kw: _SearchAuth(
-            token="mock_token", hp_key="hpKey", hp_val="mock_val", extras={}
+            token="mock_token", hp_key="hpKey", hp_val="mock_val", user_agent="mock_ua", extras={}
         ),
     )
 

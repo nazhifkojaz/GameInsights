@@ -40,8 +40,12 @@ class GameDataModel(BaseModel):
         default=None, description="in minutes", exclude=True
     )
     average_playtime: int | None = Field(default=None)
-    copies_sold: int | None = Field(default=None, description="estimated copies sold via Boxleiter method")
-    estimated_revenue: int | None = Field(default=None, description="estimated revenue in USD (via Boxleiter method")
+    copies_sold: int | None = Field(
+        default=None, description="estimated copies sold via Boxleiter method"
+    )
+    estimated_revenue: int | None = Field(
+        default=None, description="estimated revenue in USD (via Boxleiter method"
+    )
     # TODO: Implement total_revenue field - currently disabled pending data source verification
     # total_revenue: float = Field(default=float("nan"))
     owners: int | None = Field(default=None)

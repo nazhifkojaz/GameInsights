@@ -14,7 +14,13 @@ class TestGetUserData:
         from gameinsights.sources import HowLongToBeat, SteamUser
 
         def mock_get_token(*args, **kwargs):
-            return _SearchAuth(token="mock_token", hp_key="hpKey", hp_val="mock_val", extras={})
+            return _SearchAuth(
+                token="mock_token",
+                hp_key="hpKey",
+                hp_val="mock_val",
+                user_agent="mock_ua",
+                extras={},
+            )
 
         monkeypatch.setattr(HowLongToBeat, "_get_search_auth", mock_get_token)
 
@@ -37,7 +43,13 @@ class TestGetUserData:
         from gameinsights.sources import HowLongToBeat, SteamUser
 
         def mock_get_token(*args, **kwargs):
-            return _SearchAuth(token="mock_token", hp_key="hpKey", hp_val="mock_val", extras={})
+            return _SearchAuth(
+                token="mock_token",
+                hp_key="hpKey",
+                hp_val="mock_val",
+                user_agent="mock_ua",
+                extras={},
+            )
 
         monkeypatch.setattr(HowLongToBeat, "_get_search_auth", mock_get_token)
 
@@ -58,7 +70,13 @@ class TestGetUserData:
         from gameinsights.sources import HowLongToBeat
 
         def mock_get_token(*args, **kwargs):
-            return _SearchAuth(token="mock_token", hp_key="hpKey", hp_val="mock_val", extras={})
+            return _SearchAuth(
+                token="mock_token",
+                hp_key="hpKey",
+                hp_val="mock_val",
+                user_agent="mock_ua",
+                extras={},
+            )
 
         monkeypatch.setattr(HowLongToBeat, "_get_search_auth", mock_get_token)
 
@@ -72,7 +90,13 @@ class TestGetUserData:
         from gameinsights.sources import HowLongToBeat, SteamUser
 
         def mock_get_token(*args, **kwargs):
-            return _SearchAuth(token="mock_token", hp_key="hpKey", hp_val="mock_val", extras={})
+            return _SearchAuth(
+                token="mock_token",
+                hp_key="hpKey",
+                hp_val="mock_val",
+                user_agent="mock_ua",
+                extras={},
+            )
 
         monkeypatch.setattr(HowLongToBeat, "_get_search_auth", mock_get_token)
 
@@ -94,7 +118,13 @@ class TestGetUserData:
         from gameinsights.sources import HowLongToBeat, SteamUser
 
         def mock_get_token(*args, **kwargs):
-            return _SearchAuth(token="mock_token", hp_key="hpKey", hp_val="mock_val", extras={})
+            return _SearchAuth(
+                token="mock_token",
+                hp_key="hpKey",
+                hp_val="mock_val",
+                user_agent="mock_ua",
+                extras={},
+            )
 
         monkeypatch.setattr(HowLongToBeat, "_get_search_auth", mock_get_token)
 
@@ -118,7 +148,13 @@ class TestGetUserData:
         from gameinsights.sources import HowLongToBeat, SteamUser
 
         def mock_get_token(*args, **kwargs):
-            return _SearchAuth(token="mock_token", hp_key="hpKey", hp_val="mock_val", extras={})
+            return _SearchAuth(
+                token="mock_token",
+                hp_key="hpKey",
+                hp_val="mock_val",
+                user_agent="mock_ua",
+                extras={},
+            )
 
         monkeypatch.setattr(HowLongToBeat, "_get_search_auth", mock_get_token)
 
