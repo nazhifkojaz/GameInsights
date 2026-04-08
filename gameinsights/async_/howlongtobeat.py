@@ -1,0 +1,256 @@
+import json
+import re
+from typing import Any, cast
+
+import aiohttp
+from fake_useragent import UserAgent
+
+from gameinsights.async_.base import AsyncBaseSource, _AsyncResponse
+from gameinsights.sources.base import SYNTHETIC_ERROR_CODE, SourceResult, SuccessResult
+from gameinsights.sources.howlongtobeat import _HOWLONGTOBEAT_LABELS, _SearchAuth
+from gameinsights.utils.async_ratelimit import async_rate_limited
+
+
+class AsyncHowLongToBeat(AsyncBaseSource):
+    BASE_URL = "https://www.howlongtobeat.com/"
+    REFERER_HEADER = BASE_URL
+    _valid_labels: tuple[str, ...] = _HOWLONGTOBEAT_LABELS
+    _valid_labels_set: frozenset[str] = frozenset(_HOWLONGTOBEAT_LABELS)
+
+    def __init__(self, session: aiohttp.ClientSession | None = None) -> None:
+        super().__init__(session=session)
+
+    @async_rate_limited(calls=60, period=60)
+    async def fetch(
+        self,
+        game_name: str,
+        verbose: bool = True,
+        selected_labels: list[str] | None = None,
+    ) -> SourceResult:
+        self.logger.log(
+            f"Fetching data for game '{game_name}'",
+            level="info",
+            verbose=verbose,
+        )
+
+        # Step 1: Get session auth (token + dynamic params)
+        auth = await self._get_search_auth()
+        if not auth:
+            return self._build_error_result("Failed to obtain search token.", verbose=verbose)
+
+        # Step 2: Search for the game
+        search_response = await self._fetch_search_results(game_name, auth)
+        if not search_response:
+            return self._build_error_result("Failed to fetch data.", verbose=verbose)
+
+        try:
+            search_result = cast(dict[str, Any], json.loads(search_response.text))
+        except json.JSONDecodeError:
+            return self._build_error_result("Failed to parse search response.", verbose=verbose)
+
+        if not isinstance(search_result, dict):
+            return self._build_error_result("Unexpected search response format.", verbose=verbose)
+
+        if search_result.get("count") == 0:
+            return self._build_error_result("Game is not found.", verbose=verbose)
+
+        search_data = search_result.get("data")
+        if not isinstance(search_data, list) or len(search_data) == 0:
+            return self._build_error_result("No search data returned.", verbose=verbose)
+
+        first_result = search_data[0]
+        game_id = first_result.get("game_id")
+
+        if not game_id:
+            return self._build_error_result("No game ID in search result.", verbose=verbose)
+
+        # Step 3: Fetch full game data from the game page
+        full_data = await self._fetch_game_page(game_id)
+        if not full_data:
+            full_data = first_result
+
+        data_packed = self._transform_data(data=full_data)
+
+        if selected_labels:
+            data_packed = {
+                label: data_packed[label]
+                for label in self._filter_valid_labels(selected_labels)
+                if label in data_packed
+            }
+
+        return SuccessResult(success=True, data=data_packed)
+
+    async def _get_search_auth(self) -> _SearchAuth | None:
+        ua = UserAgent().random
+        headers = {
+            "Accept": "*/*",
+            "Referer": self.REFERER_HEADER,
+            "Sec-Fetch-Dest": "empty",
+            "Sec-Fetch-Mode": "cors",
+            "Sec-Fetch-Site": "same-origin",
+            "User-Agent": ua,
+        }
+
+        response = await self._make_request(url=self.BASE_URL + "api/find/init", headers=headers)
+
+        if response and response.status_code == 200:
+            try:
+                data: dict[str, Any] = response.json()
+                token = data.get("token")
+                if token is None:
+                    self.logger.log(
+                        "HLTB init response missing token", level="error", verbose=True
+                    )
+                    return None
+
+                hp_key = data.get("hpKey")
+                hp_val = data.get("hpVal")
+                if hp_key is None or hp_val is None:
+                    self.logger.log(
+                        "HLTB init response missing hpKey or hpVal", level="error", verbose=True
+                    )
+                    return None
+
+                known_keys = {"token", "hpKey", "hpVal"}
+                extras = {
+                    k: v for k, v in data.items() if k not in known_keys and isinstance(v, str)
+                }
+
+                return _SearchAuth(
+                    token=cast(str, token),
+                    hp_key=cast(str, hp_key),
+                    hp_val=cast(str, hp_val),
+                    user_agent=ua,
+                    extras=extras,
+                )
+            except (json.JSONDecodeError, KeyError) as e:
+                self.logger.log(
+                    f"HLTB auth parsing failed: {e}", level="error", verbose=True
+                )
+        else:
+            self.logger.log(
+                f"HLTB auth request failed with status {response.status_code if response else 'no response'}",
+                level="error",
+                verbose=True,
+            )
+
+        return None
+
+    async def _fetch_search_results(
+        self, game_name: str, auth: _SearchAuth
+    ) -> _AsyncResponse | None:
+        headers = {
+            "Content-Type": "application/json",
+            "Accept": "*/*",
+            "Referer": self.REFERER_HEADER,
+            "Sec-Fetch-Dest": "empty",
+            "Sec-Fetch-Mode": "cors",
+            "Sec-Fetch-Site": "same-origin",
+            "Origin": self.BASE_URL.rstrip("/"),
+            "User-Agent": auth.user_agent,
+            "x-auth-token": auth.token,
+            "x-hp-key": auth.hp_key,
+            "x-hp-val": auth.hp_val,
+        }
+        headers.update({f"x-{k.lower()}": v for k, v in auth.extras.items()})
+
+        payload = self._generate_search_payload(game_name)
+        payload[auth.hp_key] = auth.hp_val
+        payload.update(auth.extras)
+
+        response = await self._make_request(
+            url=self.BASE_URL + "api/find",
+            method="POST",
+            headers=headers,
+            json=payload,
+        )
+
+        if response.status_code == SYNTHETIC_ERROR_CODE:
+            return None
+        return response
+
+    async def _fetch_game_page(self, game_id: int) -> dict[str, Any] | None:
+        headers = {"Referer": self.REFERER_HEADER}
+        response = await self._make_request(
+            url=f"{self.BASE_URL}game/{game_id}", headers=headers
+        )
+
+        if response.status_code != 200:
+            return None
+
+        match = re.search(
+            r'<script id="__NEXT_DATA__".*?>(.*?)</script>',
+            response.text,
+            re.DOTALL,
+        )
+        if match:
+            try:
+                next_data = json.loads(match.group(1))
+                game_data = (
+                    next_data.get("props", {}).get("pageProps", {}).get("game", {}).get("data", {})
+                )
+                game_list = game_data.get("game")
+                if isinstance(game_list, list) and len(game_list) > 0:
+                    return cast(dict[str, Any], game_list[0])
+            except (json.JSONDecodeError, KeyError, IndexError):
+                pass
+
+        return None
+
+    @staticmethod
+    def _generate_search_payload(game_name: str) -> dict[str, Any]:
+        return {
+            "searchType": "games",
+            "searchTerms": game_name.split(),
+            "searchPage": 1,
+            "size": 1,
+            "searchOptions": {
+                "games": {
+                    "userId": 0,
+                    "platform": "",
+                    "sortCategory": "popular",
+                    "rangeCategory": "main",
+                    "rangeTime": {"min": 0, "max": 0},
+                    "gameplay": {
+                        "perspective": "",
+                        "flow": "",
+                        "genre": "",
+                        "difficulty": "",
+                    },
+                    "rangeYear": {"max": "", "min": ""},
+                    "modifier": "",
+                },
+                "users": {"sortCategory": "postcount"},
+                "lists": {"sortCategory": "follows"},
+                "filter": "",
+                "sort": 0,
+                "randomizer": 0,
+            },
+            "useCache": True,
+        }
+
+    def _transform_data(self, data: dict[str, Any]) -> dict[str, Any]:
+        result: dict[str, Any] = {}
+        time_labels = {
+            "comp_main",
+            "comp_plus",
+            "comp_100",
+            "comp_all",
+            "invested_co",
+            "invested_mp",
+        }
+        for label in self._valid_labels:
+            raw_value: Any = None
+
+            if label in ("comp_main", "comp_plus", "comp_100", "comp_all"):
+                raw_value = data.get(f"{label}_avg")
+            elif label in ("invested_co", "invested_mp"):
+                raw_value = data.get(f"{label}_avg")
+            else:
+                raw_value = data.get(label)
+
+            if raw_value is not None and label in time_labels:
+                result[label] = cast(int, raw_value) // 60
+            else:
+                result[label] = raw_value
+        return result
