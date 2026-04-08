@@ -19,3 +19,10 @@ __all__ = [
     "InvalidRequestError",
     "SourceUnavailableError",
 ]
+
+try:
+    from .async_collector import AsyncCollector
+
+    __all__ = [*__all__, "AsyncCollector"]
+except ImportError:
+    pass
