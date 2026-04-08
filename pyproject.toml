@@ -19,9 +19,12 @@ fake-useragent = "^2.2.0"
 ratelimit = "^2.2.1"
 pydantic = "^2.11.7"
 pandas = {version = "^2.2", optional = true}
+aiohttp = {version = "^3.9", optional = true}
+aiolimiter = {version = "^1.1", optional = true}
 
 [tool.poetry.extras]
 dataframe = ["pandas"]
+async = ["aiohttp", "aiolimiter"]
 
 
 [tool.poetry.group.notebooks.dependencies]
@@ -38,8 +41,11 @@ types-requests = "^2.32.4.20250611"
 commitizen = "^4.8.3"
 pytest = "^8.4.1"
 pytest-cov = "^6.2.1"
+pytest-asyncio = "^0.24"
 pandas-stubs = "^2.2.2"
 types-beautifulsoup4 = "^4.12.0.20240206"
+aiohttp = "^3.9"
+aiolimiter = "^1.1"
 
 
 [tool.commitizen]
@@ -101,5 +107,12 @@ ignore_missing_imports = true
 module = ["pandas.*"]
 ignore_missing_imports = true
 
+[[tool.mypy.overrides]]
+module = ["aiohttp.*", "aiolimiter.*"]
+ignore_missing_imports = true
+
 [tool.poetry.scripts]
 gameinsights = "gameinsights.cli:main"
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
