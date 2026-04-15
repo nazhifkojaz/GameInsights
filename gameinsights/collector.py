@@ -147,10 +147,6 @@ class Collector:
             session=self._session,
         )
         self.steamspy = sources.SteamSpy(session=self._session)
-        self.gamalytic = sources.Gamalytic(
-            api_key=self.gamalytic_api_key,
-            session=self._session,
-        )
         self.steamcharts = sources.SteamCharts(session=self._session)
         self.howlongtobeat = sources.HowLongToBeat(session=self._session)
         self.steamachievements = sources.SteamAchievements(
@@ -350,7 +346,6 @@ class Collector:
     def gamalytic_api_key(self, value: str) -> None:
         if self._gamalytic_api_key != value:
             self._gamalytic_api_key = value
-            self.gamalytic.api_key = value
 
     def get_user_data(
         self,

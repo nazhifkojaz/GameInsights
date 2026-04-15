@@ -1,4 +1,3 @@
-import asyncio
 from typing import Any, Literal, cast
 
 import aiohttp
@@ -90,8 +89,6 @@ class AsyncSteamReview(AsyncBaseSource):
                     }
                 reviews_data.append(review_data)
 
-            await asyncio.sleep(0.5)
-
             if params["cursor"] == page_data["cursor"]:
                 break
 
@@ -104,12 +101,8 @@ class AsyncSteamReview(AsyncBaseSource):
         )
 
     @async_rate_limited(calls=100000, period=24 * 60 * 60)
-    async def _fetch_page(
-        self, steam_appid: str, params: dict[str, Any]
-    ) -> SteamReviewResponse:
-        response: _AsyncResponse = await self._make_request(
-            endpoint=steam_appid, params=params
-        )
+    async def _fetch_page(self, steam_appid: str, params: dict[str, Any]) -> SteamReviewResponse:
+        response: _AsyncResponse = await self._make_request(endpoint=steam_appid, params=params)
         return cast(SteamReviewResponse, response.json())
 
     def _transform_data(

@@ -11,7 +11,6 @@ from gameinsights._collector_utils import (
     raise_for_fetch_failure,
 )
 from gameinsights.async_.base import AsyncBaseSource
-from gameinsights.async_.gamalytic import AsyncGamalytic
 from gameinsights.async_.howlongtobeat import AsyncHowLongToBeat
 from gameinsights.async_.protondb import AsyncProtonDB
 from gameinsights.async_.steamachievements import AsyncSteamAchievements
@@ -106,10 +105,6 @@ class AsyncCollector:
             session=self._session,
         )
         self.steamspy = AsyncSteamSpy(session=self._session)
-        self.gamalytic = AsyncGamalytic(
-            api_key=self._gamalytic_api_key,
-            session=self._session,
-        )
         self.steamcharts = AsyncSteamCharts(session=self._session)
         self.howlongtobeat = AsyncHowLongToBeat(session=self._session)
         self.steamachievements = AsyncSteamAchievements(
@@ -147,6 +142,8 @@ class AsyncCollector:
                 ],
                 is_primary=True,
             ),
+            # DISABLED: Gamalytic free endpoint removed. Re-enable by uncommenting
+            # when the endpoint is available again or a replacement is found.
             AsyncSourceConfig(
                 self.steamspy,
                 ["ccu", "tags", "discount", "average_playtime_min", "languages"],
@@ -421,7 +418,11 @@ class AsyncCollector:
                 active_player_data = await self.steamcharts.fetch(
                     appid,
                     verbose=verbose,
-                    selected_labels=["name", "peak_active_player_all_time", "monthly_active_player"],
+                    selected_labels=[
+                        "name",
+                        "peak_active_player_all_time",
+                        "monthly_active_player",
+                    ],
                 )
 
                 if active_player_data["success"]:
@@ -539,9 +540,7 @@ class AsyncCollector:
         """Fetch user data for one or more Steam IDs."""
         await self._ensure_initialized()
 
-        steamid_list = (
-            [steamids] if isinstance(steamids, (str, int)) else steamids
-        )
+        steamid_list = [steamids] if isinstance(steamids, (str, int)) else steamids
 
         results: list[dict[str, Any]] = []
         total = len(steamid_list)
@@ -556,9 +555,10 @@ class AsyncCollector:
                 fetch_result = await self.steamuser.fetch(
                     steamid=steamid, include_free_games=include_free_games, verbose=verbose
                 )
-                user_data = fetch_result["data"] if fetch_result["success"] else {"steamid": steamid}
+                user_data = (
+                    fetch_result["data"] if fetch_result["success"] else {"steamid": steamid}
+                )
                 results.append(user_data)
-                await asyncio.sleep(0.25)
             except Exception as e:
                 self.logger.log(
                     f"Error fetching data for steamid {steamid}: {e}", level="error", verbose=True
