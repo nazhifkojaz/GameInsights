@@ -28,7 +28,9 @@ _STEAMCHARTS_HTML = """
 
 
 class TestAsyncSteamCharts:
-    async def test_async_steamcharts_fetch_success(self, mock_async_request, stub_async_ratelimit) -> None:
+    async def test_async_steamcharts_fetch_success(
+        self, mock_async_request, stub_async_ratelimit
+    ) -> None:
         mock_async_request(AsyncSteamCharts, text_data=_STEAMCHARTS_HTML)
         src = AsyncSteamCharts()
         result = await src.fetch("570", verbose=False)
@@ -36,13 +38,17 @@ class TestAsyncSteamCharts:
         assert result["data"]["name"] == "Dota 2"
         assert len(result["data"]["monthly_active_player"]) == 1
 
-    async def test_async_steamcharts_fetch_http_failure(self, mock_async_request, stub_async_ratelimit) -> None:
+    async def test_async_steamcharts_fetch_http_failure(
+        self, mock_async_request, stub_async_ratelimit
+    ) -> None:
         mock_async_request(AsyncSteamCharts, status_code=403)
         src = AsyncSteamCharts()
         result = await src.fetch("570", verbose=False)
         assert result["success"] is False
 
-    async def test_async_steamcharts_fetch_parse_failure(self, mock_async_request, stub_async_ratelimit) -> None:
+    async def test_async_steamcharts_fetch_parse_failure(
+        self, mock_async_request, stub_async_ratelimit
+    ) -> None:
         mock_async_request(AsyncSteamCharts, text_data="<html><body></body></html>")
         src = AsyncSteamCharts()
         result = await src.fetch("570", verbose=False)
@@ -78,7 +84,9 @@ class TestAsyncSteamReview:
         assert result["data"]["total_positive"] == 900000
 
     async def test_async_steamreview_api_failure(self, stub_async_ratelimit) -> None:
-        mock = AsyncMock(return_value={"success": 0, "cursor": None, "query_summary": {}, "reviews": []})
+        mock = AsyncMock(
+            return_value={"success": 0, "cursor": None, "query_summary": {}, "reviews": []}
+        )
         with patch.object(AsyncSteamReview, "_fetch_page", mock):
             src = AsyncSteamReview()
             result = await src.fetch("570", verbose=False)
@@ -129,7 +137,9 @@ _PCT_DATA = {
 
 
 class TestAsyncSteamAchievements:
-    async def test_async_achievements_fetch_without_api_key(self, mock_async_request, stub_async_ratelimit) -> None:
+    async def test_async_achievements_fetch_without_api_key(
+        self, mock_async_request, stub_async_ratelimit
+    ) -> None:
         mock_async_request(AsyncSteamAchievements, json_data=_PCT_DATA)
         src = AsyncSteamAchievements()
         result = await src.fetch("570", verbose=False)
@@ -137,7 +147,9 @@ class TestAsyncSteamAchievements:
         assert result["data"]["achievements_count"] == 2
         assert result["data"]["achievements_percentage_average"] == 50.0
 
-    async def test_async_achievements_fetch_with_api_key_parallel(self, stub_async_ratelimit) -> None:
+    async def test_async_achievements_fetch_with_api_key_parallel(
+        self, stub_async_ratelimit
+    ) -> None:
         schema_data = {
             "game": {
                 "availableGameStats": {
@@ -165,7 +177,9 @@ class TestAsyncSteamAchievements:
         assert result["success"] is True
         assert result["data"]["achievements_list"][0]["display_name"] == "First!"
 
-    async def test_async_achievements_fetch_api_failure(self, mock_async_request, stub_async_ratelimit) -> None:
+    async def test_async_achievements_fetch_api_failure(
+        self, mock_async_request, stub_async_ratelimit
+    ) -> None:
         mock_async_request(AsyncSteamAchievements, status_code=500)
         src = AsyncSteamAchievements()
         result = await src.fetch("570", verbose=False)
@@ -196,7 +210,9 @@ _OWNED_GAMES_RESPONSE = {
 _RECENTLY_PLAYED_RESPONSE = {
     "response": {
         "total_count": 1,
-        "games": [{"appid": 570, "name": "Dota 2", "playtime_2weeks": 120, "playtime_forever": 5000}],
+        "games": [
+            {"appid": 570, "name": "Dota 2", "playtime_2weeks": 120, "playtime_forever": 5000}
+        ],
     }
 }
 
@@ -232,7 +248,9 @@ class TestAsyncSteamUser:
         assert result["data"]["persona_name"] == "TestUser"
         assert result["data"]["owned_games"]["game_count"] == 2
 
-    async def test_async_steamuser_fetch_private_profile_skips_games(self, stub_async_ratelimit) -> None:
+    async def test_async_steamuser_fetch_private_profile_skips_games(
+        self, stub_async_ratelimit
+    ) -> None:
         private_response = {
             "response": {
                 "players": [

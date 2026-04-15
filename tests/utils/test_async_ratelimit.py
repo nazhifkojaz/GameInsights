@@ -1,6 +1,5 @@
 """Tests for async_rate_limited decorator."""
 
-
 import pytest
 
 from gameinsights.utils.async_ratelimit import async_rate_limited

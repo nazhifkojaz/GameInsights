@@ -44,7 +44,10 @@ def mock_async_request(monkeypatch):
             return _AsyncResponse(status_code=sc, _body=body)
 
         if side_effect is not None:
-            responses = [_make_response(d.get("status_code", 200), d.get("json_data"), d.get("text_data")) for d in side_effect]
+            responses = [
+                _make_response(d.get("status_code", 200), d.get("json_data"), d.get("text_data"))
+                for d in side_effect
+            ]
             mock = AsyncMock(side_effect=responses)
         else:
             mock = AsyncMock(return_value=_make_response(status_code, json_data, text_data))

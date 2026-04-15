@@ -37,9 +37,13 @@ class TestAsyncHowLongToBeat:
         search_response = _AsyncResponse(status_code=200, _body=_SEARCH_RESPONSE_BODY)
 
         with (
-            patch.object(AsyncHowLongToBeat, "_get_search_auth", AsyncMock(return_value=_MOCK_AUTH)),
             patch.object(
-                AsyncHowLongToBeat, "_fetch_search_results", AsyncMock(return_value=search_response)
+                AsyncHowLongToBeat, "_get_search_auth", AsyncMock(return_value=_MOCK_AUTH)
+            ),
+            patch.object(
+                AsyncHowLongToBeat,
+                "_fetch_search_results",
+                AsyncMock(return_value=search_response),
             ),
             patch.object(
                 AsyncHowLongToBeat, "_fetch_game_page", AsyncMock(return_value=_GAME_PAGE_DATA)
@@ -54,9 +58,7 @@ class TestAsyncHowLongToBeat:
         assert result["data"]["comp_main"] == 200  # 12000s → 200min
 
     async def test_async_hltb_fetch_auth_failure(self, stub_async_ratelimit) -> None:
-        with patch.object(
-            AsyncHowLongToBeat, "_get_search_auth", AsyncMock(return_value=None)
-        ):
+        with patch.object(AsyncHowLongToBeat, "_get_search_auth", AsyncMock(return_value=None)):
             src = AsyncHowLongToBeat()
             result = await src.fetch("Mock Game", verbose=False)
 
@@ -65,7 +67,9 @@ class TestAsyncHowLongToBeat:
 
     async def test_async_hltb_fetch_search_failure(self, stub_async_ratelimit) -> None:
         with (
-            patch.object(AsyncHowLongToBeat, "_get_search_auth", AsyncMock(return_value=_MOCK_AUTH)),
+            patch.object(
+                AsyncHowLongToBeat, "_get_search_auth", AsyncMock(return_value=_MOCK_AUTH)
+            ),
             patch.object(
                 AsyncHowLongToBeat, "_fetch_search_results", AsyncMock(return_value=None)
             ),
@@ -81,9 +85,13 @@ class TestAsyncHowLongToBeat:
         search_response = _AsyncResponse(status_code=200, _body=not_found_body)
 
         with (
-            patch.object(AsyncHowLongToBeat, "_get_search_auth", AsyncMock(return_value=_MOCK_AUTH)),
             patch.object(
-                AsyncHowLongToBeat, "_fetch_search_results", AsyncMock(return_value=search_response)
+                AsyncHowLongToBeat, "_get_search_auth", AsyncMock(return_value=_MOCK_AUTH)
+            ),
+            patch.object(
+                AsyncHowLongToBeat,
+                "_fetch_search_results",
+                AsyncMock(return_value=search_response),
             ),
         ):
             src = AsyncHowLongToBeat()
@@ -99,13 +107,15 @@ class TestAsyncHowLongToBeat:
         search_response = _AsyncResponse(status_code=200, _body=_SEARCH_RESPONSE_BODY)
 
         with (
-            patch.object(AsyncHowLongToBeat, "_get_search_auth", AsyncMock(return_value=_MOCK_AUTH)),
             patch.object(
-                AsyncHowLongToBeat, "_fetch_search_results", AsyncMock(return_value=search_response)
+                AsyncHowLongToBeat, "_get_search_auth", AsyncMock(return_value=_MOCK_AUTH)
             ),
             patch.object(
-                AsyncHowLongToBeat, "_fetch_game_page", AsyncMock(return_value=None)
+                AsyncHowLongToBeat,
+                "_fetch_search_results",
+                AsyncMock(return_value=search_response),
             ),
+            patch.object(AsyncHowLongToBeat, "_fetch_game_page", AsyncMock(return_value=None)),
         ):
             src = AsyncHowLongToBeat()
             result = await src.fetch("Mock Game", verbose=False)
@@ -118,9 +128,13 @@ class TestAsyncHowLongToBeat:
         search_response = _AsyncResponse(status_code=200, _body=_SEARCH_RESPONSE_BODY)
 
         with (
-            patch.object(AsyncHowLongToBeat, "_get_search_auth", AsyncMock(return_value=_MOCK_AUTH)),
             patch.object(
-                AsyncHowLongToBeat, "_fetch_search_results", AsyncMock(return_value=search_response)
+                AsyncHowLongToBeat, "_get_search_auth", AsyncMock(return_value=_MOCK_AUTH)
+            ),
+            patch.object(
+                AsyncHowLongToBeat,
+                "_fetch_search_results",
+                AsyncMock(return_value=search_response),
             ),
             patch.object(
                 AsyncHowLongToBeat, "_fetch_game_page", AsyncMock(return_value=_GAME_PAGE_DATA)

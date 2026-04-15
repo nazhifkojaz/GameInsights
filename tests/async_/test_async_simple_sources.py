@@ -11,8 +11,11 @@ from gameinsights.async_.steamstore import AsyncSteamStore
 # AsyncSteamStore
 # ---------------------------------------------------------------------------
 
+
 class TestAsyncSteamStore:
-    async def test_async_steamstore_fetch_success(self, mock_async_request, stub_async_ratelimit) -> None:
+    async def test_async_steamstore_fetch_success(
+        self, mock_async_request, stub_async_ratelimit
+    ) -> None:
         json_data = {
             "570": {
                 "success": True,
@@ -39,20 +42,26 @@ class TestAsyncSteamStore:
         assert result["data"]["name"] == "Dota 2"
         assert result["data"]["is_free"] is True
 
-    async def test_async_steamstore_fetch_not_found(self, mock_async_request, stub_async_ratelimit) -> None:
+    async def test_async_steamstore_fetch_not_found(
+        self, mock_async_request, stub_async_ratelimit
+    ) -> None:
         mock_async_request(AsyncSteamStore, json_data={"570": {"success": False}})
         src = AsyncSteamStore()
         result = await src.fetch("570", verbose=False)
         assert result["success"] is False
         assert "not available" in result["error"]
 
-    async def test_async_steamstore_fetch_api_failure(self, mock_async_request, stub_async_ratelimit) -> None:
+    async def test_async_steamstore_fetch_api_failure(
+        self, mock_async_request, stub_async_ratelimit
+    ) -> None:
         mock_async_request(AsyncSteamStore, status_code=503)
         src = AsyncSteamStore()
         result = await src.fetch("570", verbose=False)
         assert result["success"] is False
 
-    async def test_async_steamstore_selected_labels(self, mock_async_request, stub_async_ratelimit) -> None:
+    async def test_async_steamstore_selected_labels(
+        self, mock_async_request, stub_async_ratelimit
+    ) -> None:
         json_data = {
             "570": {
                 "success": True,
@@ -77,8 +86,11 @@ class TestAsyncSteamStore:
 # AsyncSteamSpy
 # ---------------------------------------------------------------------------
 
+
 class TestAsyncSteamSpy:
-    async def test_async_steamspy_fetch_success(self, mock_async_request, stub_async_ratelimit) -> None:
+    async def test_async_steamspy_fetch_success(
+        self, mock_async_request, stub_async_ratelimit
+    ) -> None:
         json_data = {
             "appid": 570,
             "name": "Dota 2",
@@ -101,14 +113,18 @@ class TestAsyncSteamSpy:
         assert result["data"]["ccu"] == 400000
         assert isinstance(result["data"]["languages"], list)
 
-    async def test_async_steamspy_fetch_not_found(self, mock_async_request, stub_async_ratelimit) -> None:
+    async def test_async_steamspy_fetch_not_found(
+        self, mock_async_request, stub_async_ratelimit
+    ) -> None:
         mock_async_request(AsyncSteamSpy, json_data={"appid": 570})
         src = AsyncSteamSpy()
         result = await src.fetch("570", verbose=False)
         assert result["success"] is False
         assert "not found" in result["error"]
 
-    async def test_async_steamspy_fetch_api_failure(self, mock_async_request, stub_async_ratelimit) -> None:
+    async def test_async_steamspy_fetch_api_failure(
+        self, mock_async_request, stub_async_ratelimit
+    ) -> None:
         mock_async_request(AsyncSteamSpy, status_code=500)
         src = AsyncSteamSpy()
         result = await src.fetch("570", verbose=False)
@@ -119,8 +135,11 @@ class TestAsyncSteamSpy:
 # AsyncProtonDB
 # ---------------------------------------------------------------------------
 
+
 class TestAsyncProtonDB:
-    async def test_async_protondb_fetch_success(self, mock_async_request, stub_async_ratelimit) -> None:
+    async def test_async_protondb_fetch_success(
+        self, mock_async_request, stub_async_ratelimit
+    ) -> None:
         json_data = {
             "tier": "platinum",
             "score": 0.96,
@@ -135,14 +154,18 @@ class TestAsyncProtonDB:
         assert result["data"]["protondb_tier"] == "platinum"
         assert result["data"]["protondb_total"] == 323
 
-    async def test_async_protondb_fetch_not_found(self, mock_async_request, stub_async_ratelimit) -> None:
+    async def test_async_protondb_fetch_not_found(
+        self, mock_async_request, stub_async_ratelimit
+    ) -> None:
         mock_async_request(AsyncProtonDB, status_code=404)
         src = AsyncProtonDB()
         result = await src.fetch("570", verbose=False)
         assert result["success"] is False
         assert "not found" in result["error"]
 
-    async def test_async_protondb_fetch_api_failure(self, mock_async_request, stub_async_ratelimit) -> None:
+    async def test_async_protondb_fetch_api_failure(
+        self, mock_async_request, stub_async_ratelimit
+    ) -> None:
         mock_async_request(AsyncProtonDB, status_code=503)
         src = AsyncProtonDB()
         result = await src.fetch("570", verbose=False)
@@ -153,8 +176,11 @@ class TestAsyncProtonDB:
 # AsyncGamalytic
 # ---------------------------------------------------------------------------
 
+
 class TestAsyncGamalytic:
-    async def test_async_gamalytic_fetch_success(self, mock_async_request, stub_async_ratelimit) -> None:
+    async def test_async_gamalytic_fetch_success(
+        self, mock_async_request, stub_async_ratelimit
+    ) -> None:
         json_data = {
             "steamId": "570",
             "name": "Dota 2",
@@ -169,14 +195,18 @@ class TestAsyncGamalytic:
         assert result["data"]["name"] == "Dota 2"
         assert result["data"]["followers"] == 500000
 
-    async def test_async_gamalytic_fetch_not_found(self, mock_async_request, stub_async_ratelimit) -> None:
+    async def test_async_gamalytic_fetch_not_found(
+        self, mock_async_request, stub_async_ratelimit
+    ) -> None:
         mock_async_request(AsyncGamalytic, status_code=404)
         src = AsyncGamalytic()
         result = await src.fetch("570", verbose=False)
         assert result["success"] is False
         assert "not found" in result["error"]
 
-    async def test_async_gamalytic_fetch_api_failure(self, mock_async_request, stub_async_ratelimit) -> None:
+    async def test_async_gamalytic_fetch_api_failure(
+        self, mock_async_request, stub_async_ratelimit
+    ) -> None:
         mock_async_request(AsyncGamalytic, status_code=500)
         src = AsyncGamalytic()
         result = await src.fetch("570", verbose=False)

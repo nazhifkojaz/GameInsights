@@ -16,12 +16,15 @@ from gameinsights.sources.base import SYNTHETIC_ERROR_CODE
 # Concrete subclass for testing
 # ---------------------------------------------------------------------------
 
+
 class _ConcreteSource(AsyncBaseSource):
     _base_url = "https://example.com/api"
     _valid_labels = ("field_a", "field_b")
     _valid_labels_set = frozenset(_valid_labels)
 
-    async def fetch(self, appid: str, verbose: bool = True, selected_labels: list[str] | None = None) -> Any:
+    async def fetch(
+        self, appid: str, verbose: bool = True, selected_labels: list[str] | None = None
+    ) -> Any:
         response = await self._make_request(endpoint=appid)
         data = self._fetch_and_parse_json(response, verbose)
         if data is None:
@@ -35,6 +38,7 @@ class _ConcreteSource(AsyncBaseSource):
 # ---------------------------------------------------------------------------
 # _AsyncResponse tests
 # ---------------------------------------------------------------------------
+
 
 class TestAsyncResponse:
     def test_async_response_json_parses_body(self) -> None:
@@ -63,6 +67,7 @@ class TestAsyncResponse:
 # ---------------------------------------------------------------------------
 # AsyncBaseSource._make_request tests
 # ---------------------------------------------------------------------------
+
 
 class TestAsyncMakeRequest:
     async def test_make_request_returns_response_on_success(self) -> None:
@@ -149,6 +154,7 @@ class TestAsyncMakeRequest:
 # ---------------------------------------------------------------------------
 # Pure helper method tests
 # ---------------------------------------------------------------------------
+
 
 class TestPureHelpers:
     def test_build_error_result(self) -> None:

@@ -13,9 +13,7 @@ T = TypeVar("T")
 
 def async_rate_limited(
     calls: int | None = None, period: int | None = None
-) -> Callable[
-    [Callable[..., Coroutine[Any, Any, T]]], Callable[..., Coroutine[Any, Any, T]]
-]:
+) -> Callable[[Callable[..., Coroutine[Any, Any, T]]], Callable[..., Coroutine[Any, Any, T]]]:
     """Decorator for async rate limiting using aiolimiter.
 
     Mirrors the sync logged_rate_limited() interface. Reads self.calls / self.period
@@ -27,7 +25,7 @@ def async_rate_limited(
     """
 
     def decorator(
-        func: Callable[..., Coroutine[Any, Any, T]]
+        func: Callable[..., Coroutine[Any, Any, T]],
     ) -> Callable[..., Coroutine[Any, Any, T]]:
         cache_attr = f"__async_rl_cache_{func.__name__}"
 
@@ -37,11 +35,7 @@ def async_rate_limited(
             actual_period = period if period is not None else getattr(self, "period", 60)
 
             cache = getattr(self, cache_attr, None)
-            if (
-                cache is None
-                or cache["calls"] != actual_calls
-                or cache["period"] != actual_period
-            ):
+            if cache is None or cache["calls"] != actual_calls or cache["period"] != actual_period:
                 new_limiter = AsyncLimiter(max_rate=actual_calls, time_period=actual_period)
                 cache = {"calls": actual_calls, "period": actual_period, "limiter": new_limiter}
                 setattr(self, cache_attr, cache)

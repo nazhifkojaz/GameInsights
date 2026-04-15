@@ -44,7 +44,15 @@ _BASE_GAME_DATA: dict[str, Any] = {
     "languages": ["English"],
     "active_player_24h": 400000,
     "peak_active_player_all_time": 1000000,
-    "monthly_active_player": [{"month": "2025-01", "average_players": 400000.0, "gain": None, "percentage_gain": 0, "peak_players": 500000.0}],
+    "monthly_active_player": [
+        {
+            "month": "2025-01",
+            "average_players": 400000.0,
+            "gain": None,
+            "percentage_gain": 0,
+            "peak_players": 500000.0,
+        }
+    ],
     "achievements_count": 10,
     "achievements_percentage_average": 50.0,
     "achievements_list": None,
@@ -60,7 +68,15 @@ _STEAMCHARTS_DATA = {
     "name": "Dota 2",
     "active_player_24h": 400000,
     "peak_active_player_all_time": 1000000,
-    "monthly_active_player": [{"month": "2025-01", "average_players": 400000.0, "gain": None, "percentage_gain": 0, "peak_players": 500000.0}],
+    "monthly_active_player": [
+        {
+            "month": "2025-01",
+            "average_players": 400000.0,
+            "gain": None,
+            "percentage_gain": 0,
+            "peak_players": 500000.0,
+        }
+    ],
 }
 
 _REVIEW_DATA = {
@@ -110,7 +126,9 @@ def mock_all_sources(monkeypatch):
             collector.steamspy, "fetch", AsyncMock(return_value=_make_success(_BASE_GAME_DATA))
         )
         monkeypatch.setattr(
-            collector.steamcharts, "fetch", AsyncMock(return_value=_make_success(_STEAMCHARTS_DATA))
+            collector.steamcharts,
+            "fetch",
+            AsyncMock(return_value=_make_success(_STEAMCHARTS_DATA)),
         )
         monkeypatch.setattr(
             collector.steamreview,
