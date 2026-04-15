@@ -174,10 +174,10 @@ class TestGameDataModel:
     def test_game_data_model_float_fields_default_to_none(self):
         """Verify float fields default to None."""
         model = GameDataModel(steam_appid="test")
-
         assert model.price_initial is None
         assert model.price_final is None
         assert model.average_playtime_h is None
+        assert model.average_playtime_min is None
         assert model.achievements_percentage_average is None
         assert model.discount is None
 

@@ -1,110 +1,31 @@
-# ---------------------------
-# HowLongToBeat Source
-# Fetches game completion time data from howlongtobeat.com
-#
-# NOTE: This source scrapes data from HowLongToBeat (howlongtobeat.com).
-# This implementation is for educational/personal use only.
-# Please respect their service and consider using official APIs if available.
-#
-# API Strategy:
-# 1. GET /api/find/init - Obtain session token and auth params
-# 2. POST /api/find with x-auth-token + x-hp-key/x-hp-val headers - Search for games
-# 3. GET /game/{id} and parse __NEXT_DATA__ - Get full data
-#
-# Data Attribution: Completion times are sourced from howlongtobeat.com
-# ---------------------------
-
 import json
 import re
-from typing import Any, NamedTuple, cast
+from typing import Any, cast
 
-import requests
+import aiohttp
 
-from gameinsights.sources.base import SYNTHETIC_ERROR_CODE, BaseSource, SourceResult, SuccessResult
-from gameinsights.utils.ratelimit import logged_rate_limited
-
-
-class _SearchAuth(NamedTuple):
-    """Authentication data extracted from HLTB init endpoint.
-
-    Known fields (token, hp_key, hp_val) are explicit for clarity.
-    The extras dict carries any future auth fields HLTB adds to the
-    init response, forwarding them automatically to search requests.
-    """
-
-    token: str
-    hp_key: str  # value of hpKey from init response (used as body field name)
-    hp_val: str  # value of hpVal from init response
-    user_agent: str  # UA used for the init request — must match in subsequent requests
-    extras: dict[str, str]  # any additional non-token string fields
+from gameinsights.async_.base import AsyncBaseSource, _AsyncResponse
+from gameinsights.sources.base import SYNTHETIC_ERROR_CODE, SourceResult, SuccessResult
+from gameinsights.sources.howlongtobeat import _HOWLONGTOBEAT_LABELS, _SearchAuth
+from gameinsights.utils.async_ratelimit import async_rate_limited
 
 
-_HOWLONGTOBEAT_LABELS = (
-    "game_id",
-    "game_name",
-    "game_type",
-    "comp_main",
-    "comp_plus",
-    "comp_100",
-    "comp_all",
-    "comp_main_count",
-    "comp_plus_count",
-    "comp_100_count",
-    "comp_all_count",
-    "invested_co",
-    "invested_mp",
-    "invested_co_count",
-    "invested_mp_count",
-    "count_comp",
-    "count_speed_run",
-    "count_backlog",
-    "count_review",
-    "review_score",
-    "count_playing",
-    "count_retired",
-)
-
-
-class HowLongToBeat(BaseSource):
-    """HowLongToBeat source for fetching game completion times.
-
-    The source uses a three-step approach:
-    1. Fetch session token and auth params from /api/find/init
-    2. Search for games using /api/find with auth headers
-    3. Fetch full game data from /game/{id} and parse __NEXT_DATA__
-    """
-
+class AsyncHowLongToBeat(AsyncBaseSource):
     BASE_URL = "https://www.howlongtobeat.com/"
     REFERER_HEADER = BASE_URL
     _valid_labels: tuple[str, ...] = _HOWLONGTOBEAT_LABELS
     _valid_labels_set: frozenset[str] = frozenset(_HOWLONGTOBEAT_LABELS)
 
-    def __init__(self, session: requests.Session | None = None) -> None:
-        """Initialize HowLongToBeat source.
-
-        Args:
-            session: Optional requests.Session for connection pooling.
-        """
+    def __init__(self, session: aiohttp.ClientSession | None = None) -> None:
         super().__init__(session=session)
 
-    @logged_rate_limited(calls=60, period=60)  # web scrape -> 60 requests per minute to be polite
-    def fetch(
+    @async_rate_limited(calls=60, period=60)
+    async def fetch(
         self,
         game_name: str,
         verbose: bool = True,
         selected_labels: list[str] | None = None,
     ) -> SourceResult:
-        """Fetch game completion data from HowLongToBeat based on game name.
-
-        Args:
-            game_name: The name of the game to search for.
-            verbose: If True, will log the fetching process.
-            selected_labels: A list of labels to filter the data.
-
-        Returns:
-            SourceResult: A dictionary containing the status, completion time data,
-                and any error message if applicable.
-        """
         self.logger.log(
             f"Fetching data for game '{game_name}'",
             level="info",
@@ -112,12 +33,12 @@ class HowLongToBeat(BaseSource):
         )
 
         # Step 1: Get session auth (token + dynamic params)
-        auth = self._get_search_auth()
+        auth = await self._get_search_auth()
         if not auth:
             return self._build_error_result("Failed to obtain search token.", verbose=verbose)
 
         # Step 2: Search for the game
-        search_response = self._fetch_search_results(game_name, auth)
+        search_response = await self._fetch_search_results(game_name, auth)
         if not search_response:
             return self._build_error_result("Failed to fetch data.", verbose=verbose)
 
@@ -132,7 +53,6 @@ class HowLongToBeat(BaseSource):
         if search_result.get("count") == 0:
             return self._build_error_result("Game is not found.", verbose=verbose)
 
-        # Step 3: Get the first search result and fetch full data
         search_data = search_result.get("data")
         if not isinstance(search_data, list) or len(search_data) == 0:
             return self._build_error_result("No search data returned.", verbose=verbose)
@@ -143,13 +63,11 @@ class HowLongToBeat(BaseSource):
         if not game_id:
             return self._build_error_result("No game ID in search result.", verbose=verbose)
 
-        # Step 4: Fetch full game data from the game page
-        full_data = self._fetch_game_page(game_id)
+        # Step 3: Fetch full game data from the game page
+        full_data = await self._fetch_game_page(game_id)
         if not full_data:
-            # Fall back to search result data if page fetch fails
             full_data = first_result
 
-        # Transform and filter data
         data_packed = self._transform_data(data=full_data)
 
         if selected_labels:
@@ -161,12 +79,7 @@ class HowLongToBeat(BaseSource):
 
         return SuccessResult(success=True, data=data_packed)
 
-    def _get_search_auth(self) -> _SearchAuth | None:
-        """Fetch auth data from the init endpoint.
-
-        Returns:
-            _SearchAuth with token and auth params, or None if fetching failed.
-        """
+    async def _get_search_auth(self) -> _SearchAuth | None:
         ua = self._ua.random
         headers = {
             "Accept": "*/*",
@@ -177,7 +90,7 @@ class HowLongToBeat(BaseSource):
             "User-Agent": ua,
         }
 
-        response = self._make_request(self.BASE_URL + "api/find/init", headers=headers)
+        response = await self._make_request(url=self.BASE_URL + "api/find/init", headers=headers)
 
         if response and response.status_code == 200:
             try:
@@ -185,9 +98,7 @@ class HowLongToBeat(BaseSource):
                 token = data.get("token")
                 if token is None:
                     self.logger.log(
-                        "HLTB init response missing token",
-                        level="error",
-                        verbose=True,
+                        "HLTB init response missing token", level="error", verbose=True
                     )
                     return None
 
@@ -195,13 +106,10 @@ class HowLongToBeat(BaseSource):
                 hp_val = data.get("hpVal")
                 if hp_key is None or hp_val is None:
                     self.logger.log(
-                        "HLTB init response missing hpKey or hpVal",
-                        level="error",
-                        verbose=True,
+                        "HLTB init response missing hpKey or hpVal", level="error", verbose=True
                     )
                     return None
 
-                # Collect any additional string fields for forward compatibility
                 known_keys = {"token", "hpKey", "hpVal"}
                 extras = {
                     k: v for k, v in data.items() if k not in known_keys and isinstance(v, str)
@@ -215,11 +123,7 @@ class HowLongToBeat(BaseSource):
                     extras=extras,
                 )
             except (json.JSONDecodeError, KeyError) as e:
-                self.logger.log(
-                    f"HLTB auth parsing failed: {e}",
-                    level="error",
-                    verbose=True,
-                )
+                self.logger.log(f"HLTB auth parsing failed: {e}", level="error", verbose=True)
         else:
             self.logger.log(
                 f"HLTB auth request failed with status {response.status_code if response else 'no response'}",
@@ -229,16 +133,9 @@ class HowLongToBeat(BaseSource):
 
         return None
 
-    def _fetch_search_results(self, game_name: str, auth: _SearchAuth) -> requests.Response | None:
-        """Send a search request to HowLongToBeat.
-
-        Args:
-            game_name: The name of the game to search for.
-            auth: The auth data from init endpoint.
-
-        Returns:
-            The response object if successful, None otherwise.
-        """
+    async def _fetch_search_results(
+        self, game_name: str, auth: _SearchAuth
+    ) -> _AsyncResponse | None:
         headers = {
             "Content-Type": "application/json",
             "Accept": "*/*",
@@ -252,46 +149,30 @@ class HowLongToBeat(BaseSource):
             "x-hp-key": auth.hp_key,
             "x-hp-val": auth.hp_val,
         }
-        # Forward any unknown future fields as headers
         headers.update({f"x-{k.lower()}": v for k, v in auth.extras.items()})
 
         payload = self._generate_search_payload(game_name)
-        # Inject hp fields and any extras into the body
         payload[auth.hp_key] = auth.hp_val
         payload.update(auth.extras)
 
-        response = self._make_request(
+        response = await self._make_request(
             url=self.BASE_URL + "api/find",
             method="POST",
             headers=headers,
             json=payload,
         )
 
-        # Return None on synthetic errors (connection/timeout failures)
         if response.status_code == SYNTHETIC_ERROR_CODE:
             return None
         return response
 
-    def _fetch_game_page(self, game_id: int) -> dict[str, Any] | None:
-        """Fetch full game data from the game page.
+    async def _fetch_game_page(self, game_id: int) -> dict[str, Any] | None:
+        headers = {"Referer": self.REFERER_HEADER}
+        response = await self._make_request(url=f"{self.BASE_URL}game/{game_id}", headers=headers)
 
-        Args:
-            game_id: The HowLongToBeat game ID.
-
-        Returns:
-            The game data dict, or None if fetching failed.
-        """
-        headers = {
-            "Referer": self.REFERER_HEADER,
-        }
-
-        response = self._make_request(url=f"{self.BASE_URL}game/{game_id}", headers=headers)
-
-        # Return None on synthetic errors or non-200 responses
         if response.status_code != 200:
             return None
 
-        # Extract __NEXT_DATA__ from the HTML
         match = re.search(
             r'<script id="__NEXT_DATA__".*?>(.*?)</script>',
             response.text,
@@ -300,7 +181,6 @@ class HowLongToBeat(BaseSource):
         if match:
             try:
                 next_data = json.loads(match.group(1))
-                # Navigate the nested structure safely
                 game_data = (
                     next_data.get("props", {}).get("pageProps", {}).get("game", {}).get("data", {})
                 )
@@ -314,14 +194,6 @@ class HowLongToBeat(BaseSource):
 
     @staticmethod
     def _generate_search_payload(game_name: str) -> dict[str, Any]:
-        """Generate the search payload.
-
-        Args:
-            game_name: The game name to search for.
-
-        Returns:
-            The payload dict for the search request.
-        """
         return {
             "searchType": "games",
             "searchTerms": game_name.split(),
@@ -353,19 +225,6 @@ class HowLongToBeat(BaseSource):
         }
 
     def _transform_data(self, data: dict[str, Any]) -> dict[str, Any]:
-        """Transform raw data into the expected format.
-
-        The HLTB API returns time values in seconds. We convert them to minutes
-        for consistency with other sources. Also, we map the base time labels
-        to their '_avg' counterparts which represent the average completion time
-        as shown on the website.
-
-        Args:
-            data: The raw game data from HLTB.
-
-        Returns:
-            Dict with only the valid labels, with time values converted to minutes.
-        """
         result: dict[str, Any] = {}
         time_labels = {
             "comp_main",
@@ -378,17 +237,13 @@ class HowLongToBeat(BaseSource):
         for label in self._valid_labels:
             raw_value: Any = None
 
-            # Map time labels to their '_avg' counterparts (average completion time)
-            if label in ('comp_main', 'comp_plus', 'comp_100', 'comp_all'):
-                avg_label = f"{label}_avg"
-                raw_value = data.get(avg_label)
-            elif label in ('invested_co', 'invested_mp'):
-                avg_label = f"{label}_avg"
-                raw_value = data.get(avg_label)
+            if label in ("comp_main", "comp_plus", "comp_100", "comp_all"):
+                raw_value = data.get(f"{label}_avg")
+            elif label in ("invested_co", "invested_mp"):
+                raw_value = data.get(f"{label}_avg")
             else:
-                raw_value = data.get(label, None)
+                raw_value = data.get(label)
 
-            # Convert time fields from seconds to minutes
             if raw_value is not None and label in time_labels:
                 result[label] = cast(int, raw_value) // 60
             else:

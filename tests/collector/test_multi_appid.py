@@ -5,6 +5,7 @@ from unittest.mock import patch
 import pytest
 
 from gameinsights import Collector, GameNotFoundError
+from gameinsights.sources.howlongtobeat import _SearchAuth
 
 
 class TestMultiAppidScenarios:
@@ -77,7 +78,13 @@ class TestMultiAppidScenarios:
         from gameinsights import InvalidRequestError
         from gameinsights.sources import HowLongToBeat
 
-        monkeypatch.setattr(HowLongToBeat, "_get_search_token", lambda *args: "token")
+        monkeypatch.setattr(
+            HowLongToBeat,
+            "_get_search_auth",
+            lambda *args: _SearchAuth(
+                token="token", hp_key="hpKey", hp_val="mock_val", user_agent="mock_ua", extras={}
+            ),
+        )
 
         collector = Collector()
 
@@ -88,7 +95,13 @@ class TestMultiAppidScenarios:
         """Test get_games_data with empty list and raise_on_error=False."""
         from gameinsights.sources import HowLongToBeat
 
-        monkeypatch.setattr(HowLongToBeat, "_get_search_token", lambda *args: "token")
+        monkeypatch.setattr(
+            HowLongToBeat,
+            "_get_search_auth",
+            lambda *args: _SearchAuth(
+                token="token", hp_key="hpKey", hp_val="mock_val", user_agent="mock_ua", extras={}
+            ),
+        )
 
         collector = Collector()
 

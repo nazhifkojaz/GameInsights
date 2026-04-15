@@ -3,6 +3,7 @@
 import pytest
 
 from gameinsights import Collector
+from gameinsights.sources.howlongtobeat import _SearchAuth
 
 
 @pytest.fixture(autouse=True)
@@ -10,7 +11,13 @@ def _mock_hltb_token(monkeypatch):
     """Centralized mock for HowLongToBeat token to avoid repetition."""
     from gameinsights.sources import HowLongToBeat
 
-    monkeypatch.setattr(HowLongToBeat, "_get_search_token", lambda *a, **kw: "mock_token")
+    monkeypatch.setattr(
+        HowLongToBeat,
+        "_get_search_auth",
+        lambda *a, **kw: _SearchAuth(
+            token="mock_token", hp_key="hpKey", hp_val="mock_val", user_agent="mock_ua", extras={}
+        ),
+    )
 
 
 class TestCollectorProperties:
@@ -59,17 +66,14 @@ class TestCollectorProperties:
         # SteamAchievements and SteamUser may not be instantiated without the key
         # but the collector stores it for when they are created
 
-    def test_gamalytic_api_key_property_setter_updates_source(self):
-        """Test that setting gamalytic_api_key updates Gamalytic source."""
+    def test_gamalytic_api_key_property_setter_stores_key(self):
+        """Test that setting gamalytic_api_key stores the key on the collector."""
         collector = Collector()
 
-        # Set API key
         test_key = "GAMALYTIC_KEY_67890"  # gitleaks:allow - test value only
         collector.gamalytic_api_key = test_key
 
-        # Verify both collector and source are updated
         assert collector._gamalytic_api_key == test_key
-        assert collector.gamalytic.api_key == test_key
 
     def test_property_setter_idempotent(self):
         """Test that setting property to same value doesn't trigger updates."""

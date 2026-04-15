@@ -4,6 +4,12 @@ import pytest
 
 
 @pytest.fixture
+def hltb_init_response_data():
+    """Init endpoint response data for HLTB auth."""
+    return {"token": "mock_token", "hpKey": "hpKey", "hpVal": "mock_hp_val"}
+
+
+@pytest.fixture
 def hltb_success_response_data():
     """Success response data for HowLongToBeat API search."""
     data = """

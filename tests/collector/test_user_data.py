@@ -3,6 +3,7 @@
 from unittest.mock import patch
 
 from gameinsights import Collector
+from gameinsights.sources.howlongtobeat import _SearchAuth
 
 
 class TestGetUserData:
@@ -13,9 +14,15 @@ class TestGetUserData:
         from gameinsights.sources import HowLongToBeat, SteamUser
 
         def mock_get_token(*args, **kwargs):
-            return "mock_token"
+            return _SearchAuth(
+                token="mock_token",
+                hp_key="hpKey",
+                hp_val="mock_val",
+                user_agent="mock_ua",
+                extras={},
+            )
 
-        monkeypatch.setattr(HowLongToBeat, "_get_search_token", mock_get_token)
+        monkeypatch.setattr(HowLongToBeat, "_get_search_auth", mock_get_token)
 
         # Mock successful SteamUser response
         mock_response = {
@@ -36,9 +43,15 @@ class TestGetUserData:
         from gameinsights.sources import HowLongToBeat, SteamUser
 
         def mock_get_token(*args, **kwargs):
-            return "mock_token"
+            return _SearchAuth(
+                token="mock_token",
+                hp_key="hpKey",
+                hp_val="mock_val",
+                user_agent="mock_ua",
+                extras={},
+            )
 
-        monkeypatch.setattr(HowLongToBeat, "_get_search_token", mock_get_token)
+        monkeypatch.setattr(HowLongToBeat, "_get_search_auth", mock_get_token)
 
         mock_response = {
             "success": True,
@@ -57,9 +70,15 @@ class TestGetUserData:
         from gameinsights.sources import HowLongToBeat
 
         def mock_get_token(*args, **kwargs):
-            return "mock_token"
+            return _SearchAuth(
+                token="mock_token",
+                hp_key="hpKey",
+                hp_val="mock_val",
+                user_agent="mock_ua",
+                extras={},
+            )
 
-        monkeypatch.setattr(HowLongToBeat, "_get_search_token", mock_get_token)
+        monkeypatch.setattr(HowLongToBeat, "_get_search_auth", mock_get_token)
 
         collector = Collector()
         result = collector.get_user_data([], return_as="list")
@@ -71,9 +90,15 @@ class TestGetUserData:
         from gameinsights.sources import HowLongToBeat, SteamUser
 
         def mock_get_token(*args, **kwargs):
-            return "mock_token"
+            return _SearchAuth(
+                token="mock_token",
+                hp_key="hpKey",
+                hp_val="mock_val",
+                user_agent="mock_ua",
+                extras={},
+            )
 
-        monkeypatch.setattr(HowLongToBeat, "_get_search_token", mock_get_token)
+        monkeypatch.setattr(HowLongToBeat, "_get_search_auth", mock_get_token)
 
         # Mock SteamUser to raise an exception during fetch
         with patch.object(SteamUser, "fetch", side_effect=ConnectionError("Network error")):
@@ -93,9 +118,15 @@ class TestGetUserData:
         from gameinsights.sources import HowLongToBeat, SteamUser
 
         def mock_get_token(*args, **kwargs):
-            return "mock_token"
+            return _SearchAuth(
+                token="mock_token",
+                hp_key="hpKey",
+                hp_val="mock_val",
+                user_agent="mock_ua",
+                extras={},
+            )
 
-        monkeypatch.setattr(HowLongToBeat, "_get_search_token", mock_get_token)
+        monkeypatch.setattr(HowLongToBeat, "_get_search_auth", mock_get_token)
 
         mock_response = {
             "success": True,
@@ -117,9 +148,15 @@ class TestGetUserData:
         from gameinsights.sources import HowLongToBeat, SteamUser
 
         def mock_get_token(*args, **kwargs):
-            return "mock_token"
+            return _SearchAuth(
+                token="mock_token",
+                hp_key="hpKey",
+                hp_val="mock_val",
+                user_agent="mock_ua",
+                extras={},
+            )
 
-        monkeypatch.setattr(HowLongToBeat, "_get_search_token", mock_get_token)
+        monkeypatch.setattr(HowLongToBeat, "_get_search_auth", mock_get_token)
 
         mock_response = {
             "success": True,

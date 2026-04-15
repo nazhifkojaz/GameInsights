@@ -15,7 +15,7 @@ class TestSteamSpy:
         assert result["data"]["steam_appid"] == 12345
         assert result["data"]["name"] == "Mock Game: The Adventure"
         assert result["data"]["discount"] == 25.5
-        assert len(result["data"]) == 18
+        assert len(result["data"]) == 19
 
     def test_fetch_success_unexpected_data(
         self,

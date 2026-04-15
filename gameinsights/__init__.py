@@ -19,3 +19,12 @@ __all__ = [
     "InvalidRequestError",
     "SourceUnavailableError",
 ]
+
+try:
+    from .async_collector import AsyncCollector
+
+    __all__ = [*__all__, "AsyncCollector"]
+except ModuleNotFoundError as exc:
+    # Only swallow the error when the missing module is an optional async extra
+    if exc.name not in ("aiohttp", "aiolimiter"):
+        raise

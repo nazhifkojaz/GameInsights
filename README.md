@@ -21,10 +21,6 @@ A unified tool for collecting Steam game data from multiple sources. Fetch steam
   ```python
   from gameinsights.sources import SteamStore, SteamCharts, ...
   ```
-- **Utilities for discovery**:  
-  `gameinsights.utils.GameSearch` can:
-  - Fetch the full Steam app list
-  - Perform fuzzy search to find `steam_appid` by game name
 - **Built-in collectors**:
   - Game reviews
   - Active player time series (SteamCharts)
@@ -118,16 +114,6 @@ result = src.fetch("570")
 print(result["success"], result["data"]["active_player_24h"])
 ```
 *(successful fetch will have "success": True and "data" key, while failed fetch will have "success": False and "error" key)*
-
-**Utilities – list & search games:**
-```python
-from gameinsights.utils.gamesearch import GameSearch
-
-search = GameSearch()
-all_games = search.get_game_list()
-results = search.search_by_name("Dota", top_n=5)
-print(results)  # [{'appid': '570', 'name': 'Dota 2', 'search_score': 99.0}, ...]
-```
 
 **Command Line Interface:**
 ```bash

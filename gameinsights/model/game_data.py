@@ -36,15 +36,20 @@ class GameDataModel(BaseModel):
     release_date: datetime | None = Field(default=None)
     days_since_release: int | None = Field(default=None)
     average_playtime_h: float | None = Field(default=None, description="in hours", exclude=True)
+    average_playtime_min: float | None = Field(
+        default=None, description="in minutes", exclude=True
+    )
     average_playtime: int | None = Field(default=None)
-    copies_sold: int | None = Field(default=None)
-    estimated_revenue: int | None = Field(default=None, description="in USD")
+    copies_sold: int | None = Field(
+        default=None, description="estimated copies sold via Boxleiter method"
+    )
+    estimated_revenue: int | None = Field(
+        default=None, description="estimated revenue in USD (via Boxleiter method)"
+    )
     # TODO: Implement total_revenue field - currently disabled pending data source verification
     # total_revenue: float = Field(default=float("nan"))
     owners: int | None = Field(default=None)
-    followers: int | None = Field(
-        default=None, description="Steam wishlist/follower count from Gamalytic"
-    )
+    followers: int | None = Field(default=None, description="Steam wishlist/follower count")
     early_access: bool | None = Field(default=None, description="Whether game is in early access")
     ccu: int | None = Field(default=None)
     active_player_24h: int | None = Field(default=None)
@@ -160,6 +165,7 @@ class GameDataModel(BaseModel):
         "price_initial",
         "price_final",
         "average_playtime_h",
+        "average_playtime_min",
         "achievements_percentage_average",
         "discount",
         "protondb_score",
@@ -232,6 +238,8 @@ class GameDataModel(BaseModel):
     def compute_average_playtime(self) -> None:
         if self.average_playtime_h is not None:
             self.average_playtime = int(self.average_playtime_h * 3600)
+        elif self.average_playtime_min is not None:
+            self.average_playtime = int(self.average_playtime_min * 60)
 
     def compute_days_since_release(self) -> None:
         if self.release_date:

@@ -92,7 +92,8 @@ class Gamalytic(BaseSource):
         data = self._fetch_and_parse_json(response, verbose)
         if data is None:
             return self._build_error_result(
-                f"Failed to connect to API. Status code: {response.status_code}", verbose=verbose
+                f"Failed to fetch or parse JSON. Status code: {response.status_code}",
+                verbose=verbose,
             )
 
         # Parse JSON response if everything is fine and pack/process the data as labels we want

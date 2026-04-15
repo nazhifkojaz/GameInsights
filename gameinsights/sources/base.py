@@ -50,6 +50,7 @@ class BaseSource(ABC):
         """
         self._logger = LoggerWrapper(self.__class__.__name__)
         self._session = session
+        self._ua = UserAgent()
 
     @property
     def logger(self) -> "LoggerWrapper":
@@ -156,14 +157,13 @@ class BaseSource(ABC):
             final_url = urljoin(final_url + "/", endpoint.rstrip("/"))
 
         # Prepare headers with User-Agent
-        ua = UserAgent()
         if headers is None:
-            headers = {"User-Agent": ua.random}
+            headers = {"User-Agent": self._ua.random}
         else:
             # Only add User-Agent if not already present
             if "User-Agent" not in headers:
                 headers = headers.copy()
-                headers["User-Agent"] = ua.random
+                headers["User-Agent"] = self._ua.random
 
         exception_to_retry = (ConnectionError, Timeout)
         exception_to_abort = (
@@ -188,10 +188,10 @@ class BaseSource(ABC):
                         timeout=timeout,
                     )
             except exception_to_retry as e:
-                if attempts < retries:
+                if attempts <= retries:
                     sleep_duration = backoff_factor * (2 ** (attempts - 1))  # the cooldown period
                     self.logger.log(
-                        f"Encounter error {e}. Retrying in {sleep_duration: .1f}s. (Attempt {attempts+1} of {retries})",
+                        f"Encounter error {e}. Retrying in {sleep_duration: .1f}s. (Retry {attempts} of {retries})",
                         level="warning",
                         verbose=True,
                     )
