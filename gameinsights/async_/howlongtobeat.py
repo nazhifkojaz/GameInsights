@@ -3,7 +3,6 @@ import re
 from typing import Any, cast
 
 import aiohttp
-from fake_useragent import UserAgent
 
 from gameinsights.async_.base import AsyncBaseSource, _AsyncResponse
 from gameinsights.sources.base import SYNTHETIC_ERROR_CODE, SourceResult, SuccessResult
@@ -81,7 +80,7 @@ class AsyncHowLongToBeat(AsyncBaseSource):
         return SuccessResult(success=True, data=data_packed)
 
     async def _get_search_auth(self) -> _SearchAuth | None:
-        ua = UserAgent().random
+        ua = self._ua.random
         headers = {
             "Accept": "*/*",
             "Referer": self.REFERER_HEADER,
@@ -124,9 +123,7 @@ class AsyncHowLongToBeat(AsyncBaseSource):
                     extras=extras,
                 )
             except (json.JSONDecodeError, KeyError) as e:
-                self.logger.log(
-                    f"HLTB auth parsing failed: {e}", level="error", verbose=True
-                )
+                self.logger.log(f"HLTB auth parsing failed: {e}", level="error", verbose=True)
         else:
             self.logger.log(
                 f"HLTB auth request failed with status {response.status_code if response else 'no response'}",
@@ -171,9 +168,7 @@ class AsyncHowLongToBeat(AsyncBaseSource):
 
     async def _fetch_game_page(self, game_id: int) -> dict[str, Any] | None:
         headers = {"Referer": self.REFERER_HEADER}
-        response = await self._make_request(
-            url=f"{self.BASE_URL}game/{game_id}", headers=headers
-        )
+        response = await self._make_request(url=f"{self.BASE_URL}game/{game_id}", headers=headers)
 
         if response.status_code != 200:
             return None

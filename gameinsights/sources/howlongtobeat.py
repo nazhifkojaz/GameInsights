@@ -19,7 +19,6 @@ import re
 from typing import Any, NamedTuple, cast
 
 import requests
-from fake_useragent import UserAgent
 
 from gameinsights.sources.base import SYNTHETIC_ERROR_CODE, BaseSource, SourceResult, SuccessResult
 from gameinsights.utils.ratelimit import logged_rate_limited
@@ -168,7 +167,7 @@ class HowLongToBeat(BaseSource):
         Returns:
             _SearchAuth with token and auth params, or None if fetching failed.
         """
-        ua = UserAgent().random
+        ua = self._ua.random
         headers = {
             "Accept": "*/*",
             "Referer": self.REFERER_HEADER,
