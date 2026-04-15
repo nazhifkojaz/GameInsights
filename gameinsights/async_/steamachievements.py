@@ -13,9 +13,9 @@ class AsyncSteamAchievements(AsyncBaseSource):
     _valid_labels: tuple[str, ...] = _STEAMACHIEVEMENT_LABELS
     _valid_labels_set: frozenset[str] = frozenset(_STEAMACHIEVEMENT_LABELS)
     _base_url = (
-        "http://api.steampowered.com/ISteamUserStats/GetGlobalAchievementPercentagesForApp/v0002"
+        "https://api.steampowered.com/ISteamUserStats/GetGlobalAchievementPercentagesForApp/v0002"
     )
-    _schema_url = "http://api.steampowered.com/ISteamUserStats/GetSchemaForGame/v2"
+    _schema_url = "https://api.steampowered.com/ISteamUserStats/GetSchemaForGame/v2"
 
     def __init__(
         self, api_key: str | None = None, session: aiohttp.ClientSession | None = None

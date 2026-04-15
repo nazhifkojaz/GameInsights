@@ -70,8 +70,13 @@ class TestAsyncResponse:
 
 
 class TestAsyncMakeRequest:
-    async def test_make_request_returns_response_on_success(self) -> None:
-        src = _ConcreteSource()
+    @pytest.fixture
+    async def src(self) -> Any:
+        source = _ConcreteSource()
+        yield source
+        await source.close()
+
+    async def test_make_request_returns_response_on_success(self, src: Any) -> None:
         payload = {"result": 42}
 
         mock_resp = AsyncMock()
@@ -88,17 +93,15 @@ class TestAsyncMakeRequest:
         assert result.status_code == 200
         assert result.json() == payload
 
-    async def test_make_request_returns_synthetic_on_timeout(self) -> None:
+    async def test_make_request_returns_synthetic_on_timeout(self, src: Any) -> None:
         # asyncio.TimeoutError is in the retriable bucket
-        src = _ConcreteSource()
         with patch.object(src.session, "get", side_effect=asyncio.TimeoutError()):
             result = await src._make_request(endpoint="570", retries=1, backoff_factor=0)
 
         assert result.status_code == SYNTHETIC_ERROR_CODE
 
-    async def test_make_request_retries_on_retriable_error(self) -> None:
+    async def test_make_request_retries_on_retriable_error(self, src: Any) -> None:
         # Verify retry loop: first call raises TimeoutError, second succeeds
-        src = _ConcreteSource()
         payload = {"ok": True}
 
         success_resp = AsyncMock()
@@ -124,16 +127,14 @@ class TestAsyncMakeRequest:
         assert result.status_code == 200
         assert call_count == 2
 
-    async def test_make_request_returns_synthetic_on_unknown_error(self) -> None:
+    async def test_make_request_returns_synthetic_on_unknown_error(self, src: Any) -> None:
         # Unknown exceptions fall through to catch-all and return synthetic
-        src = _ConcreteSource()
         with patch.object(src.session, "get", side_effect=RuntimeError("unexpected")):
             result = await src._make_request(endpoint="570")
 
         assert result.status_code == SYNTHETIC_ERROR_CODE
 
-    async def test_make_request_uses_post_method(self) -> None:
-        src = _ConcreteSource()
+    async def test_make_request_uses_post_method(self, src: Any) -> None:
         payload = {"key": "val"}
 
         mock_resp = AsyncMock()

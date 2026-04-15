@@ -12,10 +12,10 @@ from gameinsights.utils.async_ratelimit import async_rate_limited
 class AsyncSteamUser(AsyncBaseSource):
     _valid_labels: tuple[str, ...] = _STEAMUSER_LABELS
     _valid_labels_set: frozenset[str] = frozenset(_STEAMUSER_LABELS)
-    _base_url = "http://api.steampowered.com/ISteamUser/GetPlayerSummaries/v0002"
-    _owned_games_url = "http://api.steampowered.com/IPlayerService/GetOwnedGames/v0001/"
+    _base_url = "https://api.steampowered.com/ISteamUser/GetPlayerSummaries/v0002"
+    _owned_games_url = "https://api.steampowered.com/IPlayerService/GetOwnedGames/v0001/"
     _recently_played_url = (
-        "http://api.steampowered.com/IPlayerService/GetRecentlyPlayedGames/v0001/"
+        "https://api.steampowered.com/IPlayerService/GetRecentlyPlayedGames/v0001/"
     )
 
     def __init__(
