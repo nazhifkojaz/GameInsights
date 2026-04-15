@@ -58,6 +58,7 @@ class AsyncBaseSource(ABC):
     def __init__(self, session: aiohttp.ClientSession | None = None) -> None:
         self._logger = LoggerWrapper(self.__class__.__name__)
         self._session = session
+        self._ua = UserAgent()
 
     @property
     def logger(self) -> LoggerWrapper:
@@ -107,12 +108,11 @@ class AsyncBaseSource(ABC):
         if endpoint:
             final_url = urljoin(final_url + "/", endpoint.rstrip("/"))
 
-        ua = UserAgent()
         if headers is None:
-            headers = {"User-Agent": ua.random}
+            headers = {"User-Agent": self._ua.random}
         elif "User-Agent" not in headers:
             headers = headers.copy()
-            headers["User-Agent"] = ua.random
+            headers["User-Agent"] = self._ua.random
 
         if isinstance(timeout, tuple):
             connect_t, total_t = timeout
@@ -164,11 +164,11 @@ class AsyncBaseSource(ABC):
                 return self._create_synthetic_response(url=final_url, reason=str(e))
 
             except retriable as e:
-                if attempt < retries:
+                if attempt <= retries:
                     sleep_duration = backoff_factor * (2 ** (attempt - 1))
                     self.logger.log(
                         f"Encounter error {e}. Retrying in {sleep_duration:.1f}s. "
-                        f"(Attempt {attempt + 1} of {retries})",
+                        f"(Retry {attempt} of {retries})",
                         level="warning",
                         verbose=True,
                     )

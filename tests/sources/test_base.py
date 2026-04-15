@@ -86,6 +86,7 @@ class TestBaseSource:
             requests.exceptions.Timeout("timeout 1"),
             requests.exceptions.Timeout("timeout 2"),
             requests.exceptions.Timeout("timeout 3"),
+            requests.exceptions.Timeout("timeout 4"),
         ]
         # Mock the session's get method instead of requests.get
         mock_get = mock_request_response(
@@ -93,7 +94,7 @@ class TestBaseSource:
         )
         result = base_source_fixture._make_request()
 
-        assert mock_get.call_count == 3
+        assert mock_get.call_count == 4  # 1 initial + 3 retries
         assert result.status_code == base.SYNTHETIC_ERROR_CODE
         assert not result.ok
 
@@ -142,6 +143,7 @@ class TestBaseSource:
             requests.exceptions.Timeout("timeout 1"),
             requests.exceptions.Timeout("timeout 2"),
             requests.exceptions.Timeout("timeout 3"),
+            requests.exceptions.Timeout("timeout 4"),
         ]
         # Mock the session's post method
         mock_post = mock_request_response(
@@ -150,7 +152,7 @@ class TestBaseSource:
 
         result = base_source_fixture._make_request(method="POST", json={"test": "data"})
 
-        assert mock_post.call_count == 3
+        assert mock_post.call_count == 4  # 1 initial + 3 retries
         assert result.status_code == base.SYNTHETIC_ERROR_CODE
         assert not result.ok
 
