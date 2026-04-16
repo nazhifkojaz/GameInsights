@@ -53,16 +53,19 @@ class TestDatabaseCacheIntegration:
         with PostgresContainer("postgres:16-alpine") as postgres:
             yield postgres.get_connection_url()
 
-    @pytest_asyncio.fixture
+    @pytest_asyncio.fixture(loop_scope="function")
     async def cache(self, postgres_url):
         from app.config import Settings
-        from app.database import create_pool, init_schema
+        from app.database import create_engine, create_session_factory
+        from app.models import Base
 
         settings = Settings(database_url=postgres_url)
-        pool = await create_pool(settings)
-        await init_schema(pool)
-        yield DatabaseCache(pool)
-        await pool.close()
+        engine = create_engine(settings)
+        session_factory = create_session_factory(engine)
+        async with engine.begin() as conn:
+            await conn.run_sync(Base.metadata.create_all)
+        yield DatabaseCache(session_factory)
+        await engine.dispose()
 
     @pytest.mark.asyncio
     async def test_get_missing_key(self, cache):

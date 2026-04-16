@@ -1,8 +1,9 @@
 import asyncio
 from typing import Any
 
+import requests as requests_lib
 from fastapi import APIRouter, Depends, Query
-from gameinsights import GameNotFoundError
+from gameinsights import GameNotFoundError, SourceUnavailableError
 from gameinsights.utils.gamesearch import GameSearch
 
 from app.collector_pool import CollectorPool
@@ -26,7 +27,12 @@ async def search_games(
     top_n: int = Query(default=5, ge=1, le=50),
     game_search: GameSearch = Depends(get_game_search),
 ) -> list[dict[str, Any]]:
-    return await asyncio.to_thread(game_search.search_by_name, q, top_n=top_n)
+    try:
+        return await asyncio.to_thread(game_search.search_by_name, q, top_n=top_n)
+    except requests_lib.exceptions.RequestException as e:
+        raise SourceUnavailableError(
+            source="steam_applist", reason=str(e)
+        ) from e
 
 
 @router.get("/{appid}", response_model=GameResponse)

@@ -1,17 +1,15 @@
-import os
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from gameinsights import GameInsightsError
 
-from gameinsights.utils.gamesearch import GameSearch
-
 from app.collector_pool import CollectorPool
 from app.config import Settings
-from app.database import create_pool, init_schema
+from app.database import create_engine, create_session_factory
 from app.db_cache import DatabaseCache
 from app.exceptions import gameinsights_exception_handler
+from app.game_search import GameSearch
 from app.routers import games, health, users
 
 
@@ -21,19 +19,18 @@ async def lifespan(app: FastAPI):
     pool = CollectorPool(settings)
     await pool.startup()
 
-    db_pool = await create_pool(settings)
-    await init_schema(db_pool)
-
-    cache = DatabaseCache(db_pool)
+    engine = create_engine(settings)
+    session_factory = create_session_factory(engine)
+    cache = DatabaseCache(session_factory)
 
     app.state.pool = pool
-    app.state.db_pool = db_pool
+    app.state.engine = engine
     app.state.cache = cache
     app.state.settings = settings
-    app.state.game_search = GameSearch()
+    app.state.game_search = GameSearch(settings.steam_api_key)
     yield
     await pool.shutdown()
-    await db_pool.close()
+    await engine.dispose()
 
 
 def create_app() -> FastAPI:
@@ -53,8 +50,5 @@ def create_app() -> FastAPI:
     app.include_router(users.router)
     return app
 
-
-if os.environ.get("GAMEINSIGHTS_DATABASE_URL") is None:
-    os.environ["GAMEINSIGHTS_DATABASE_URL"] = "postgresql://dummy"
 
 app = create_app()
