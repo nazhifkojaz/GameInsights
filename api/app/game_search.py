@@ -30,6 +30,7 @@ class GameSearch(_BaseGameSearch):
                     "max_results": 50000,
                     "last_appid": last_appid,
                 },
+                timeout=30,
             )
             response.raise_for_status()
             data = response.json()["response"]

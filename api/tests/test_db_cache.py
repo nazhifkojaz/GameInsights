@@ -63,6 +63,7 @@ class TestDatabaseCacheIntegration:
         engine = create_engine(settings)
         session_factory = create_session_factory(engine)
         async with engine.begin() as conn:
+            await conn.run_sync(Base.metadata.drop_all)
             await conn.run_sync(Base.metadata.create_all)
         yield DatabaseCache(session_factory)
         await engine.dispose()

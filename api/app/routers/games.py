@@ -189,11 +189,17 @@ async def get_games_batch(
             )
 
             endpoint = Endpoint.GAME_RECAP if request.recap else Endpoint.GAME
-            for i, data in enumerate(fetched_results):
-                appid_i, key_i = uncached_appids[i]
-                results.append(data)
-                await cache.set(
-                    key_i, endpoint, appid_i, settings.region, settings.language, data
-                )
+            fetched_by_id = {
+                item.get("steam_appid", item.get("appid")): item
+                for item in fetched_results
+                if isinstance(item, dict)
+            }
+            for appid, cache_key in uncached_appids:
+                data = fetched_by_id.get(appid)
+                if data is not None:
+                    results.append(data)
+                    await cache.set(
+                        cache_key, endpoint, appid, settings.region, settings.language, data
+                    )
 
     return results

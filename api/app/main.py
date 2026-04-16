@@ -15,19 +15,24 @@ from app.routers import games, health, users
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    settings = Settings()
+    settings: Settings = app.state.settings
     pool = CollectorPool(settings)
     await pool.startup()
 
-    engine = create_engine(settings)
-    session_factory = create_session_factory(engine)
-    cache = DatabaseCache(session_factory)
+    try:
+        engine = create_engine(settings)
+        session_factory = create_session_factory(engine)
+        cache = DatabaseCache(session_factory)
+    except Exception:
+        await pool.shutdown()
+        raise
 
     app.state.pool = pool
     app.state.engine = engine
     app.state.cache = cache
-    app.state.settings = settings
-    app.state.game_search = GameSearch(settings.steam_api_key)
+    app.state.game_search = GameSearch(
+        settings.steam_api_key.get_secret_value() if settings.steam_api_key else None
+    )
     yield
     await pool.shutdown()
     await engine.dispose()
@@ -35,9 +40,11 @@ async def lifespan(app: FastAPI):
 
 def create_app() -> FastAPI:
     settings = Settings()
+
     app = FastAPI(
         lifespan=lifespan, title=settings.api_title, version=settings.api_version
     )
+    app.state.settings = settings
     app.add_middleware(
         CORSMiddleware,
         allow_origins=settings.cors_origins,

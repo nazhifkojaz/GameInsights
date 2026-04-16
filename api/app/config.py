@@ -1,9 +1,10 @@
-from pydantic_settings import BaseSettings
+from pydantic import SecretStr, field_validator
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
-    steam_api_key: str | None = None
-    gamalytic_api_key: str | None = None
+    steam_api_key: SecretStr | None = None
+    gamalytic_api_key: SecretStr | None = None
     region: str = "us"
     language: str = "english"
     rate_limit_calls: int = 60
@@ -12,7 +13,10 @@ class Settings(BaseSettings):
     cache_max_size: int = 256
     cache_ttl_seconds: int = 600
     database_url: str | None = None
-    cors_origins: list[str] = ["*"]
+    # Allowed CORS origins. Accepts JSON array (e.g. '["http://localhost:3000"]')
+    # or comma-separated string (e.g. 'http://localhost:3000,http://localhost:3001')
+    # from the GAMEINSIGHTS_CORS_ORIGINS env var.
+    cors_origins: list[str] = []
     api_title: str = "GameInsights API"
     api_version: str = "0.1.0"
 
@@ -21,4 +25,18 @@ class Settings(BaseSettings):
     collector_raise_on_error: bool = True
     batch_size_limit: int = 10
 
-    model_config = {"env_prefix": "GAMEINSIGHTS_", "env_file": ".env"}
+    @field_validator("cors_origins", mode="before")
+    @classmethod
+    def parse_cors_origins(cls, v: str | list[str]) -> list[str]:
+        if isinstance(v, str):
+            v = v.strip()
+            if v.startswith("["):
+                import json
+
+                return json.loads(v)
+            if v:
+                return [origin.strip() for origin in v.split(",") if origin.strip()]
+            return []
+        return v
+
+    model_config = SettingsConfigDict(env_prefix="GAMEINSIGHTS_", env_file=".env", extra="ignore")

@@ -19,7 +19,7 @@ class DatabaseCache:
         """Generate a human-readable cache key."""
         return f"{endpoint}:{identifier}:{region}:{language}"
 
-    async def get(self, key: str) -> Any:
+    async def get(self, key: str) -> Any | None:
         async with self._session_factory() as session:
             stmt = select(GameCache).where(
                 GameCache.cache_key == key,

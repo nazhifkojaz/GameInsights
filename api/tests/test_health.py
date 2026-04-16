@@ -1,5 +1,7 @@
 import pytest
 
+from conftest import MOCK_POOL_SIZE
+
 
 @pytest.mark.asyncio
 async def test_health_check(client):
@@ -9,4 +11,4 @@ async def test_health_check(client):
     assert data["status"] == "ok"
     assert "api_title" in data
     assert "pool_size" in data
-    assert data["pool_size"] == 3
+    assert data["pool_size"] == MOCK_POOL_SIZE

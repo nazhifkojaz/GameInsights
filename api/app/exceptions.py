@@ -20,7 +20,7 @@ async def gameinsights_exception_handler(
     request: Request, exc: Exception
 ) -> JSONResponse:
     if not isinstance(exc, GameInsightsError):
-        raise
+        raise exc
 
     status_code, error_type = _EXCEPTION_MAP.get(type(exc), (500, "internal_error"))
     body: dict = {"error": error_type, "message": str(exc)}

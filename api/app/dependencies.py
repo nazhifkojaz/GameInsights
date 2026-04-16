@@ -1,5 +1,5 @@
 from fastapi import Request
-from gameinsights.utils.gamesearch import GameSearch
+from app.game_search import GameSearch
 
 from app.collector_pool import CollectorPool
 from app.db_cache import DatabaseCache

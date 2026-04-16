@@ -1,4 +1,6 @@
 import ssl
+import os
+from urllib.parse import urlparse, parse_qsl, urlencode, urlunparse
 
 from sqlalchemy.ext.asyncio import (
     AsyncEngine,
@@ -30,10 +32,10 @@ def _ensure_async_driver(url: str) -> str:
         scheme, _, rest = url.partition("://")
         base = scheme.split("+")[0]
         url = f"{base}+asyncpg://{rest}"
-    # asyncpg doesn't accept sslmode as a query parameter
-    if "sslmode=" in url:
-        url = url.replace("sslmode=require", "").rstrip("?&")
-        url = url.rstrip("?")
+    # asyncpg doesn't accept sslmode as a query parameter — remove all sslmode params
+    parsed = urlparse(url)
+    params = [(k, v) for k, v in parse_qsl(parsed.query, keep_blank_values=True) if k.lower() != "sslmode"]
+    url = urlunparse(parsed._replace(query=urlencode(params)))
     return url
 
 
@@ -41,7 +43,8 @@ def _build_connect_args(url: str) -> dict:
     """Build asyncpg connect_args for SSL if needed."""
     if "sslmode=require" in url:
         ctx = ssl.create_default_context()
-        ctx.check_hostname = False
-        ctx.verify_mode = ssl.CERT_NONE
+        cafile = os.environ.get("GAMEINSIGHTS_DB_CAFILE")
+        if cafile:
+            ctx.load_verify_locations(cafile=cafile)
         return {"ssl": ctx}
     return {}

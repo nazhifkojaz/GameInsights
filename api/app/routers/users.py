@@ -33,11 +33,6 @@ async def get_user(
             collector.get_user_data, steamid, return_as="list", verbose=False
         )
 
-    if not results:
-        # In this specific context we just return empty list or raise generic error
-        # based on gameinsights' underlying behavior
-        return []
-
     await cache.set(
         cache_key, Endpoint.USER, steamid, settings.region, settings.language, results
     )
