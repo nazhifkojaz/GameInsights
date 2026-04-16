@@ -28,6 +28,6 @@ dev = [
 ]
 
 [tool.uv.sources]
-gameinsights = { git = "https://github.com/nazhifkojaz/gameinsights.git", rev = "main" }
+gameinsights = { workspace = true }
 [tool.mypy]
 ignore_missing_imports = true
