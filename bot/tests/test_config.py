@@ -1,5 +1,3 @@
-import os
-
 import pytest
 from pydantic import ValidationError
 
@@ -11,6 +9,17 @@ class TestBotSettings:
         """Test that a valid token is accepted."""
         settings = BotSettings(discord_token="test_token_123")
         assert settings.discord_token == "test_token_123"
+
+    def test_defaults(self, monkeypatch):
+        """Test that defaults are correct when no env vars or overrides are set."""
+        for key in [
+            "GAMEINSIGHTS_BOT_DISCORD_TOKEN",
+            "GAMEINSIGHTS_BOT_API_BASE_URL",
+            "GAMEINSIGHTS_BOT_API_TIMEOUT_SECONDS",
+            "GAMEINSIGHTS_BOT_REVIEWS_DISPLAY_COUNT",
+        ]:
+            monkeypatch.delenv(key, raising=False)
+        settings = BotSettings(discord_token="test_token")
         assert settings.api_base_url == "http://localhost:8000"
         assert settings.api_timeout_seconds == 45.0
         assert settings.reviews_display_count == 3
@@ -55,23 +64,15 @@ class TestBotSettings:
         assert settings.api_timeout_seconds == 60.0
         assert settings.reviews_display_count == 5
 
-    def test_env_prefix_loading(self):
+    def test_env_prefix_loading(self, monkeypatch):
         """Test that settings load from environment variables with prefix."""
-        # Set env vars
-        os.environ["GAMEINSIGHTS_BOT_DISCORD_TOKEN"] = "env_token"
-        os.environ["GAMEINSIGHTS_BOT_API_BASE_URL"] = "https://env.example.com"
-        os.environ["GAMEINSIGHTS_BOT_API_TIMEOUT_SECONDS"] = "30.0"
-        os.environ["GAMEINSIGHTS_BOT_REVIEWS_DISPLAY_COUNT"] = "10"
+        monkeypatch.setenv("GAMEINSIGHTS_BOT_DISCORD_TOKEN", "env_token")
+        monkeypatch.setenv("GAMEINSIGHTS_BOT_API_BASE_URL", "https://env.example.com")
+        monkeypatch.setenv("GAMEINSIGHTS_BOT_API_TIMEOUT_SECONDS", "30.0")
+        monkeypatch.setenv("GAMEINSIGHTS_BOT_REVIEWS_DISPLAY_COUNT", "10")
 
-        try:
-            settings = BotSettings()
-            assert settings.discord_token == "env_token"
-            assert settings.api_base_url == "https://env.example.com"
-            assert settings.api_timeout_seconds == 30.0
-            assert settings.reviews_display_count == 10
-        finally:
-            # Clean up env vars
-            del os.environ["GAMEINSIGHTS_BOT_DISCORD_TOKEN"]
-            del os.environ["GAMEINSIGHTS_BOT_API_BASE_URL"]
-            del os.environ["GAMEINSIGHTS_BOT_API_TIMEOUT_SECONDS"]
-            del os.environ["GAMEINSIGHTS_BOT_REVIEWS_DISPLAY_COUNT"]
+        settings = BotSettings()
+        assert settings.discord_token == "env_token"
+        assert settings.api_base_url == "https://env.example.com"
+        assert settings.api_timeout_seconds == 30.0
+        assert settings.reviews_display_count == 10

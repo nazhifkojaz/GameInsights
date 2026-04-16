@@ -1,5 +1,5 @@
-from app.cogs.games import GamesCog
-from app.cogs.reviews import ReviewsCog
-from app.cogs.users import UsersCog
+from .games import GamesCog
+from .reviews import ReviewsCog
+from .users import UsersCog
 
 __all__ = ["GamesCog", "ReviewsCog", "UsersCog"]

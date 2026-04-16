@@ -26,3 +26,8 @@ class GameInsightsBot(commands.Bot):
         super().__init__(*args, **kwargs)
         self.settings = settings
         self.api_client = GameInsightsAPIClient(settings)
+
+    async def close(self) -> None:
+        """Clean up the API client before shutting down the bot."""
+        await self.api_client.close()
+        await super().close()

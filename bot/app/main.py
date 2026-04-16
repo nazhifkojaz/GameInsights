@@ -1,5 +1,3 @@
-import asyncio
-
 import discord
 
 from app.bot import GameInsightsBot
@@ -24,10 +22,7 @@ def main() -> None:
     bot.add_cog(ReviewsCog(bot))
     bot.add_cog(UsersCog(bot))
 
-    try:
-        bot.run(settings.discord_token)
-    finally:
-        asyncio.get_event_loop().run_until_complete(bot.api_client.close())
+    bot.run(settings.discord_token)
 
 
 if __name__ == "__main__":

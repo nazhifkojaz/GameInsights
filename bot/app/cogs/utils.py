@@ -9,6 +9,14 @@ from discord import ApplicationContext
 from app.embeds.error_embed import build_error_embed
 
 
+def _safe_error_detail(e: httpx.HTTPStatusError) -> dict[str, Any]:
+    """Extract error detail from an HTTPStatusError, falling back gracefully."""
+    try:
+        return e.response.json()
+    except Exception:
+        return {"detail": e.response.text or f"HTTP {e.response.status_code}"}
+
+
 def handle_api_errors(func: Callable[..., Any]) -> Callable[..., Any]:
     """Decorator to handle API errors consistently across all cog commands.
 
@@ -37,7 +45,10 @@ def handle_api_errors(func: Callable[..., Any]) -> Callable[..., Any]:
         try:
             return await func(self, ctx, *args, **kwargs)
         except httpx.HTTPStatusError as e:
-            embed = build_error_embed(e.response.json())
+            embed = build_error_embed(_safe_error_detail(e))
+            await ctx.followup.send(embed=embed)
+        except httpx.RequestError as e:
+            embed = build_error_embed({"detail": f"Request failed: {type(e).__name__}"})
             await ctx.followup.send(embed=embed)
 
     return wrapper

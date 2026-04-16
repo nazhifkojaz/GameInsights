@@ -36,11 +36,11 @@ def build_game_embed(data: dict[str, Any]) -> discord.Embed:
     embed.add_field(name="Copies Sold", value=copies, inline=True)
     embed.add_field(name="Est. Revenue", value=rev, inline=True)
 
-    proton_tier = data.get("protondb_tier", "Unknown")
+    proton_tier = data.get("protondb_tier") or "Unknown"
     embed.add_field(name="ProtonDB Tier", value=proton_tier, inline=True)
 
-    devs = ", ".join(data.get("developers", [])) or "Unknown"
-    release = data.get("release_date", "Unknown")
+    devs = ", ".join(data.get("developers") or []) or "Unknown"
+    release = data.get("release_date") or "Unknown"
     embed.add_field(name="Developer", value=devs, inline=True)
     embed.add_field(name="Release Date", value=release, inline=True)
 
@@ -87,7 +87,7 @@ def build_players_graph(data: list[dict[str, Any]], appid: str = "") -> discord.
         small_font = ImageFont.truetype(
             "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 12
         )
-    except:
+    except OSError:
         default = ImageFont.load_default()
         title_font = default
         label_font = default

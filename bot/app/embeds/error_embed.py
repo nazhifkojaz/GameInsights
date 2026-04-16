@@ -40,9 +40,9 @@ def build_error_embed(error_data: dict[str, Any]) -> discord.Embed:
     embed = discord.Embed(title="Error", description=message, color=color)
 
     if "identifier" in error_data and error_data["identifier"]:
-        embed.add_field(name="Identifier", value=error_data["identifier"])
+        embed.add_field(name="Identifier", value=str(error_data["identifier"]))
 
     if "source" in error_data and error_data["source"]:
-        embed.add_field(name="Source", value=error_data["source"])
+        embed.add_field(name="Source", value=str(error_data["source"]))
 
     return embed
