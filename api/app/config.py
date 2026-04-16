@@ -39,4 +39,6 @@ class Settings(BaseSettings):
             return []
         return v
 
-    model_config = SettingsConfigDict(env_prefix="GAMEINSIGHTS_", env_file=".env", extra="ignore")
+    model_config = SettingsConfigDict(
+        env_prefix="GAMEINSIGHTS_", env_file=".env", extra="ignore"
+    )

@@ -31,7 +31,7 @@ async def lifespan(app: FastAPI):
     app.state.engine = engine
     app.state.cache = cache
     app.state.game_search = GameSearch(
-        settings.steam_api_key.get_secret_value() if settings.steam_api_key else None
+        settings.steam_api_key.get_secret_value() if settings.steam_api_key else ""
     )
     yield
     await pool.shutdown()

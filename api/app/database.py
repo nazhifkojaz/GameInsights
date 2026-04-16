@@ -34,7 +34,11 @@ def _ensure_async_driver(url: str) -> str:
         url = f"{base}+asyncpg://{rest}"
     # asyncpg doesn't accept sslmode as a query parameter — remove all sslmode params
     parsed = urlparse(url)
-    params = [(k, v) for k, v in parse_qsl(parsed.query, keep_blank_values=True) if k.lower() != "sslmode"]
+    params = [
+        (k, v)
+        for k, v in parse_qsl(parsed.query, keep_blank_values=True)
+        if k.lower() != "sslmode"
+    ]
     url = urlunparse(parsed._replace(query=urlencode(params)))
     return url
 

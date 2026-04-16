@@ -42,17 +42,14 @@ class InMemoryCache:
         self._store[key] = data
 
 
-MOCK_POOL_SIZE = 3
-
-
 @pytest.fixture
 def mock_pool():
     pool = AsyncMock(spec=CollectorPool)
     mock_collector = MagicMock()
     pool.acquire.return_value.__aenter__ = AsyncMock(return_value=mock_collector)
     pool.acquire.return_value.__aexit__ = AsyncMock(return_value=False)
-    type(pool).size = property(lambda self: MOCK_POOL_SIZE)
-    type(pool).available = property(lambda self: MOCK_POOL_SIZE)
+    type(pool).size = property(lambda self: 3)
+    type(pool).available = property(lambda self: 3)
     return pool, mock_collector
 
 

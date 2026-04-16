@@ -19,8 +19,16 @@ class CollectorPool:
             collector = Collector(
                 region=self._settings.region,
                 language=self._settings.language,
-                steam_api_key=self._settings.steam_api_key.get_secret_value() if self._settings.steam_api_key else None,
-                gamalytic_api_key=self._settings.gamalytic_api_key.get_secret_value() if self._settings.gamalytic_api_key else None,
+                steam_api_key=(
+                    self._settings.steam_api_key.get_secret_value()
+                    if self._settings.steam_api_key
+                    else None
+                ),
+                gamalytic_api_key=(
+                    self._settings.gamalytic_api_key.get_secret_value()
+                    if self._settings.gamalytic_api_key
+                    else None
+                ),
                 calls=self._settings.rate_limit_calls,
                 period=self._settings.rate_limit_period,
             )
