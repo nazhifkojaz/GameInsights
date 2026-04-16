@@ -1,19 +1,32 @@
 # Python
 __pycache__/
-*.pyc
-*.pyo
-*.pyd
-
-# Poetry
-poetry.lock
-
-# Virtual environments
+*.py[cod]
+*$py.class
+*.egg-info/
+build/
+dist/
 .venv/
 
-# VSCode
-.vscode/
+# Node / Web
+node_modules/
 
+# Environment
 .env
+.env.*
 
-# Generated docs
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Testing / Caching
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Generated
 docs/
+.python-version
