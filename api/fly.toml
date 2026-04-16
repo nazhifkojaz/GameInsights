@@ -1,0 +1,23 @@
+app = "gameinsights-api"
+primary_region = "sjc"
+
+[build]
+  dockerfile = "Dockerfile"
+
+[env]
+  GAMEINSIGHTS_REGION = "us"
+  GAMEINSIGHTS_LANGUAGE = "english"
+  GAMEINSIGHTS_COLLECTOR_POOL_SIZE = "3"
+  GAMEINSIGHTS_CACHE_TTL_SECONDS = "600"
+
+[http_service]
+  internal_port = 8000
+  force_https = true
+  auto_stop_machines = "stop"      # Sleep when idle (free tier savings)
+  auto_start_machines = true       # Wake on incoming request (~2-3s cold start)
+  min_machines_running = 0
+
+[[vm]]
+  memory = "256mb"
+  cpu_kind = "shared"
+  cpus = 1
