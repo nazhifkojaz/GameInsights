@@ -3,9 +3,9 @@ name: CI (Library)
 on:
   push:
     branches: [main]
-    paths: ["lib/**", "pyproject.toml"]
+    paths: ["lib/**", "pyproject.toml", ".github/workflows/ci.yml"]
   pull_request:
-    paths: ["lib/**", "pyproject.toml"]
+    paths: ["lib/**", "pyproject.toml", ".github/workflows/ci.yml"]
 
 jobs:
   quality-checks:
@@ -31,6 +31,6 @@ jobs:
     - run: uv run pytest -vv --cov=gameinsights tests/
     - name: Upload coverage
       if: matrix.python-version == '3.12'
-      uses: codecov/codecov-action@v3
+      uses: codecov/codecov-action@v5
       with:
         token: ${{ secrets.CODECOV_TOKEN }}

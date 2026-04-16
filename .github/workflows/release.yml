@@ -3,7 +3,7 @@ name: Release
 on:
   push:
     tags:
-      - "v*"
+      - "*.*.*"
   workflow_dispatch:
     inputs:
       publish-target:
@@ -109,18 +109,19 @@ jobs:
         working-directory: lib
         env:
           PUBLISH_TARGET: ${{ steps.target.outputs.value }}
-          UV_PUBLISH_TOKEN: ${{ secrets.PYPI_API_TOKEN }}
+          PYPI_TOKEN: ${{ secrets.PYPI_API_TOKEN }}
+          TEST_PYPI_TOKEN: ${{ secrets.TEST_PYPI_API_TOKEN }}
         run: |
           if [ "$PUBLISH_TARGET" = "testpypi" ]; then
-            if [ -z "$UV_PUBLISH_TOKEN" ]; then
+            if [ -z "$TEST_PYPI_TOKEN" ]; then
               echo "TEST_PYPI_API_TOKEN secret is not set" >&2
               exit 1
             fi
-            uv publish --publish-url https://test.pypi.org/legacy/
+            UV_PUBLISH_TOKEN="$TEST_PYPI_TOKEN" uv publish --publish-url https://test.pypi.org/legacy/
           else
-            if [ -z "$UV_PUBLISH_TOKEN" ]; then
+            if [ -z "$PYPI_TOKEN" ]; then
               echo "PYPI_API_TOKEN secret is not set" >&2
               exit 1
             fi
-            uv publish
+            UV_PUBLISH_TOKEN="$PYPI_TOKEN" uv publish
           fi
