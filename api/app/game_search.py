@@ -1,3 +1,4 @@
+import threading
 from typing import Any
 
 import requests
@@ -15,7 +16,7 @@ class GameSearch:
     def __init__(self, steam_api_key: str) -> None:
         self._api_key = steam_api_key
         self._cached_games: list[dict[str, Any]] = []
-        self._cached_names: list[str] = []
+        self._refresh_lock = threading.Lock()
 
     def get_game_list(self) -> list[dict[str, Any]]:
         apps: list[dict[str, Any]] = []
@@ -47,9 +48,13 @@ class GameSearch:
         return apps
 
     def _refresh(self, force: bool = False) -> None:
-        if force or not self._cached_games:
-            self._cached_games = self.get_game_list()
-            self._cached_names = [game["name"].lower() for game in self._cached_games]
+        if not force and self._cached_games:
+            return
+        with self._refresh_lock:
+            if not force and self._cached_games:
+                return
+            games = self.get_game_list()
+            self._cached_games = games
 
     def search_by_name(self, game_name: str, top_n: int = 5) -> list[dict[str, Any]]:
         self._refresh()

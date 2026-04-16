@@ -1,18 +1,24 @@
+import functools
+
 import pytest
 import pytest_asyncio
 
 from app.constants import ENDPOINT_TTL, Endpoint
 from app.db_cache import DatabaseCache
 
-docker_available = False
-try:
-    import docker
 
-    client = docker.from_env()
-    client.ping()
-    docker_available = True
-except Exception:
-    pass
+@functools.lru_cache(maxsize=1)
+def is_docker_available() -> bool:
+    try:
+        import docker
+    except ImportError:
+        return False
+    try:
+        client = docker.from_env()
+        client.ping()
+    except docker.errors.DockerException:
+        return False
+    return True
 
 
 @pytest.mark.asyncio
@@ -42,7 +48,7 @@ async def test_ttl_values():
     assert ENDPOINT_TTL[Endpoint.USER] == 86400
 
 
-@pytest.mark.skipif(not docker_available, reason="Docker not available")
+@pytest.mark.skipif(not is_docker_available(), reason="Docker not available")
 class TestDatabaseCacheIntegration:
     """Integration tests requiring Docker/testcontainers."""
 

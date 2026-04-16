@@ -13,10 +13,12 @@ export default function DetailSection({
 }: Props) {
   const [open, setOpen] = useState(defaultOpen);
   const regionId = useId();
+  const headerId = `${regionId}-header`;
 
   return (
     <div className="detail-section">
       <button
+        id={headerId}
         className="detail-section-header"
         onClick={() => setOpen(!open)}
         type="button"
@@ -27,7 +29,12 @@ export default function DetailSection({
         <span className="detail-section-icon">{open ? "\u25BE" : "\u25B8"}</span>
       </button>
       {open && (
-        <div className="detail-section-body" id={regionId} role="region">
+        <div
+          className="detail-section-body"
+          id={regionId}
+          role="region"
+          aria-labelledby={headerId}
+        >
           {children}
         </div>
       )}

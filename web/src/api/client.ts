@@ -30,15 +30,19 @@ class ApiClient {
     options?: { signal?: AbortSignal },
   ): Promise<T> {
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), DEFAULT_TIMEOUT);
+    const timeoutId = setTimeout(
+      () => controller.abort(new DOMException("timeout", "AbortError")),
+      DEFAULT_TIMEOUT,
+    );
 
-    // Link external signal (for search cancellation)
+    // Link external signal (for search/component cancellation)
     let onExternalAbort: (() => void) | undefined;
     if (options?.signal) {
       if (options.signal.aborted) {
-        controller.abort();
+        controller.abort((options.signal as { reason?: unknown }).reason);
       }
-      onExternalAbort = () => controller.abort();
+      onExternalAbort = () =>
+        controller.abort((options.signal as { reason?: unknown }).reason);
       options.signal.addEventListener("abort", onExternalAbort, { once: true });
     }
 
@@ -56,6 +60,19 @@ class ApiClient {
       }
 
       return (await response.json()) as T;
+    } catch (err) {
+      if (
+        err instanceof DOMException &&
+        err.name === "AbortError" &&
+        controller.signal.reason instanceof DOMException &&
+        controller.signal.reason.message === "timeout"
+      ) {
+        throw new ApiRequestError(408, {
+          error: "timeout",
+          message: "Request timed out",
+        });
+      }
+      throw err;
     } finally {
       clearTimeout(timeoutId);
       if (options?.signal && onExternalAbort) {
@@ -76,12 +93,18 @@ class ApiClient {
     return this.fetch<SearchResult[]>(`/games/search?${params}`, { signal });
   }
 
-  async getGame(appid: string): Promise<Game> {
-    return this.fetch<Game>(`/games/${appid}`);
+  async getGame(appid: string, signal?: AbortSignal): Promise<Game> {
+    return this.fetch<Game>(`/games/${encodeURIComponent(appid)}`, { signal });
   }
 
-  async getActivePlayers(appid: string): Promise<PlayerHistory[]> {
-    return this.fetch<PlayerHistory[]>(`/games/${appid}/active-players`);
+  async getActivePlayers(
+    appid: string,
+    signal?: AbortSignal,
+  ): Promise<PlayerHistory[]> {
+    return this.fetch<PlayerHistory[]>(
+      `/games/${encodeURIComponent(appid)}/active-players`,
+      { signal },
+    );
   }
 
   async healthCheck(): Promise<HealthCheck> {

@@ -21,6 +21,7 @@ export function useGameData(appid: string): GameDataState {
 
   useEffect(() => {
     let cancelled = false;
+    const controller = new AbortController();
 
     const longWaitTimer = setTimeout(() => {
       if (!cancelled) setState((s) => ({ ...s, longWait: true }));
@@ -29,8 +30,8 @@ export function useGameData(appid: string): GameDataState {
     async function fetchData() {
       try {
         const [game, players] = await Promise.all([
-          apiClient.getGame(appid),
-          apiClient.getActivePlayers(appid).catch(() => null),
+          apiClient.getGame(appid, controller.signal),
+          apiClient.getActivePlayers(appid, controller.signal).catch(() => null),
         ]);
 
         if (!cancelled) {
@@ -44,6 +45,9 @@ export function useGameData(appid: string): GameDataState {
         }
       } catch (err) {
         if (!cancelled) {
+          if (err instanceof DOMException && err.name === "AbortError") {
+            return;
+          }
           const error =
             err instanceof ApiRequestError
               ? err
@@ -66,6 +70,7 @@ export function useGameData(appid: string): GameDataState {
 
     return () => {
       cancelled = true;
+      controller.abort();
       clearTimeout(longWaitTimer);
     };
   }, [appid]);

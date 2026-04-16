@@ -11,6 +11,7 @@
   --accent-metacritic: #6dc849;
   --accent-red: #ed4245;
   --border: #2a2d35;
+  /* stylelint-disable-next-line value-keyword-case */
   --font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
     "Helvetica Neue", Arial, sans-serif;
   --max-width: 800px;

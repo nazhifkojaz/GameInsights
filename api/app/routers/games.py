@@ -103,13 +103,16 @@ async def get_game_reviews(
     settings: Settings = Depends(get_settings),
 ) -> list[dict[str, Any]]:
     # Reviews are explicitly noted to have None TTL (no caching)
-    async with pool.acquire() as collector:
-        results = await asyncio.to_thread(
-            collector.get_game_review,
-            appid,
-            return_as="list",
-            verbose=settings.collector_verbose,
-        )
+    try:
+        async with pool.acquire() as collector:
+            results = await asyncio.to_thread(
+                collector.get_game_review,
+                appid,
+                return_as="list",
+                verbose=settings.collector_verbose,
+            )
+    except requests_lib.exceptions.RequestException as e:
+        raise SourceUnavailableError(source="steam_reviews", reason=str(e)) from e
     return results
 
 
@@ -160,6 +163,7 @@ async def get_games_batch(
     # The spec states cache TTL is "Per-appid" so we will loop appids.
 
     results = []
+    cache_lookups: list[tuple[str, str, dict[str, Any] | None]] = []
     uncached_appids = []
 
     for appid in request.appids:
@@ -170,11 +174,12 @@ async def get_games_batch(
             settings.language,
         )
         cached = await cache.get(cache_key)
+        cache_lookups.append((appid, cache_key, cached))
         if cached is not None:
-            results.append(cached)
-        else:
-            uncached_appids.append((appid, cache_key))
+            continue
+        uncached_appids.append((appid, cache_key))
 
+    fetched_by_id: dict[str, dict[str, Any]] = {}
     if uncached_appids:
         appids_to_fetch = [appid for appid, _ in uncached_appids]
         async with pool.acquire() as collector:
@@ -186,23 +191,30 @@ async def get_games_batch(
                 verbose=settings.collector_verbose,
             )
 
-            endpoint = Endpoint.GAME_RECAP if request.recap else Endpoint.GAME
-            fetched_by_id = {
-                item.get("steam_appid", item.get("appid")): item
-                for item in fetched_results
-                if isinstance(item, dict)
-            }
-            for appid, cache_key in uncached_appids:
-                data = fetched_by_id.get(appid)
-                if data is not None:
-                    results.append(data)
-                    await cache.set(
-                        cache_key,
-                        endpoint,
-                        appid,
-                        settings.region,
-                        settings.language,
-                        data,
-                    )
+        endpoint = Endpoint.GAME_RECAP if request.recap else Endpoint.GAME
+        fetched_by_id = {
+            str(item["steam_appid"] if "steam_appid" in item and item["steam_appid"] is not None else item["appid"]): item
+            for item in fetched_results
+            if isinstance(item, dict)
+        }
+        for appid, cache_key in uncached_appids:
+            data = fetched_by_id.get(appid)
+            if data is not None:
+                await cache.set(
+                    cache_key,
+                    endpoint,
+                    appid,
+                    settings.region,
+                    settings.language,
+                    data,
+                )
+
+    for appid, cache_key, cached in cache_lookups:
+        if cached is not None:
+            results.append(cached)
+        else:
+            data = fetched_by_id.get(appid)
+            if data is not None:
+                results.append(data)
 
     return results

@@ -25,6 +25,7 @@ dev = [
     "testcontainers[postgres]>=4.9.0",
     "ruff>=0.15.2",
     "types-cachetools>=6.2.0.20251022",
+    "types-requests>=2.32.0",
 ]
 
 [tool.uv.sources]
