@@ -1,48 +1,36 @@
-name: CI
+name: CI (Library)
 
 on:
   push:
     branches: [main]
+    paths: ["lib/**", "pyproject.toml", ".github/workflows/ci.yml"]
   pull_request:
-    branches: [main]
+    paths: ["lib/**", "pyproject.toml", ".github/workflows/ci.yml"]
 
 jobs:
   quality-checks:
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: lib
     strategy:
       matrix:
         python-version: ["3.10", "3.11", "3.12"]
-    
+
     steps:
     - uses: actions/checkout@v4
-    
-    - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v4
+    - uses: actions/setup-python@v5
       with:
         python-version: ${{ matrix.python-version }}
-    
-    - name: Install poetry
-      run: pip install poetry
-
-    - name: Install dependencies
-      run: |
-        poetry install --with dev --sync
-        echo "$(poetry env info -p)/bin" >> $GITHUB_PATH
-    
-    - name: Run Ruff
-      run: poetry run ruff check gameinsights/ tests/ --output-format=github
-    
-    - name: Formatting with Black (for gameinsights and tests)
-      run: black --check --diff gameinsights/ tests/
-    
-    - name: Type checking with MyPy (for gameinsights)
-      run: mypy --show-error-codes gameinsights/
-    
-    - name: Run tests
-      run: pytest -v --cov=gameinsights tests/
-    
+    - name: Install uv
+      uses: astral-sh/setup-uv@v4
+    - run: uv sync --group dev --extra dataframe
+    - run: uv run ruff check gameinsights/ tests/ --output-format=github
+    - run: uv run black --check gameinsights/ tests/
+    - run: uv run mypy gameinsights/
+    - run: uv run pytest -vv --cov=gameinsights tests/
     - name: Upload coverage
       if: matrix.python-version == '3.12'
-      uses: codecov/codecov-action@v3
+      uses: codecov/codecov-action@v5
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
