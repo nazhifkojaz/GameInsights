@@ -35,6 +35,9 @@ class ApiClient {
     // Link external signal (for search cancellation)
     let onExternalAbort: (() => void) | undefined;
     if (options?.signal) {
+      if (options.signal.aborted) {
+        controller.abort();
+      }
       onExternalAbort = () => controller.abort();
       options.signal.addEventListener("abort", onExternalAbort, { once: true });
     }

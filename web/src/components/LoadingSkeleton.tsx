@@ -4,7 +4,7 @@ interface Props {
 
 export default function LoadingSkeleton({ longWait }: Props) {
   return (
-    <div className="skeleton">
+    <div className="skeleton" role="status" aria-busy="true" aria-live="polite">
       <div className="skeleton-hero">
         <div className="skeleton-image shimmer" />
         <div className="skeleton-title shimmer" />

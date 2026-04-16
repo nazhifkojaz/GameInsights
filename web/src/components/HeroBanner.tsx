@@ -23,13 +23,17 @@ export default function HeroBanner({ game }: Props) {
       <h1 className="hero-title">{game.name}</h1>
       <p className="hero-meta">
         {devs} &bull; {price} &bull;{" "}
-        {game.release_date
-          ? new Date(game.release_date).toLocaleDateString(undefined, {
-              year: "numeric",
-              month: "short",
-              day: "numeric",
-            })
-          : "Unknown release date"}
+        {(() => {
+          if (!game.release_date) return "Unknown release date";
+          const date = new Date(game.release_date);
+          return isNaN(date.getTime())
+            ? "Unknown release date"
+            : date.toLocaleDateString(undefined, {
+                year: "numeric",
+                month: "short",
+                day: "numeric",
+              });
+        })()}
       </p>
       <div className="hero-tags">
         {game.genres?.map((genre) => (

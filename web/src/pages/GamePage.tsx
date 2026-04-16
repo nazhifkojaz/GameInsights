@@ -10,7 +10,18 @@ import { formatNumber, formatCurrency, formatHours } from "../utils/formatting";
 
 export default function GamePage() {
   const { appid } = useParams<{ appid: string }>();
-  const { game, playerHistory, loading, longWait, error } = useGameData(appid!);
+
+  if (!appid) {
+    return (
+      <div style={{ padding: "2rem", textAlign: "center" }}>
+        <h1>Invalid Game</h1>
+        <p>No AppID provided.</p>
+        <Link to="/">&larr; Back to Search</Link>
+      </div>
+    );
+  }
+
+  const { game, playerHistory, loading, longWait, error } = useGameData(appid);
 
   if (loading) return <LoadingSkeleton longWait={longWait} />;
   if (error || !game) return <ErrorDisplay error={error} />;

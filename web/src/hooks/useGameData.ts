@@ -44,12 +44,19 @@ export function useGameData(appid: string): GameDataState {
         }
       } catch (err) {
         if (!cancelled) {
+          const error =
+            err instanceof ApiRequestError
+              ? err
+              : new ApiRequestError(0, {
+                  error: "unknown",
+                  message: err instanceof Error ? err.message : "An unexpected error occurred",
+                });
           setState({
             game: null,
             playerHistory: null,
             loading: false,
             longWait: false,
-            error: err instanceof ApiRequestError ? err : null,
+            error,
           });
         }
       }

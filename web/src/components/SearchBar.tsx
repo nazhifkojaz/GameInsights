@@ -66,6 +66,7 @@ export default function SearchBar() {
   // Debounce (300ms)
   useEffect(() => {
     if (!query.trim()) {
+      abortRef.current?.abort();
       setResults([]);
       setShowResults(false);
       return;

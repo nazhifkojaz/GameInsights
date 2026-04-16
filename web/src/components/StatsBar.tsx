@@ -9,7 +9,7 @@ export default function StatsBar({ game }: Props) {
   const price = game.is_free ? "Free" : formatCurrency(game.price_final);
   const reviews = game.review_score_desc || "N/A";
   const totalReviews = formatNumber(game.total_reviews);
-  const players = formatNumber(game.ccu ?? game.active_player_24h);
+  const players = formatNumber(game.active_player_24h ?? game.ccu);
   const peak = formatNumber(game.peak_active_player_all_time);
   const metacritic =
     game.metacritic_score != null ? String(game.metacritic_score) : "N/A";

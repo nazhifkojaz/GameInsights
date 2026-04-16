@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useId } from "react";
 
 interface Props {
   title: string;
@@ -12,6 +12,7 @@ export default function DetailSection({
   defaultOpen = false,
 }: Props) {
   const [open, setOpen] = useState(defaultOpen);
+  const regionId = useId();
 
   return (
     <div className="detail-section">
@@ -19,11 +20,17 @@ export default function DetailSection({
         className="detail-section-header"
         onClick={() => setOpen(!open)}
         type="button"
+        aria-expanded={open}
+        aria-controls={regionId}
       >
         <span>{title}</span>
         <span className="detail-section-icon">{open ? "\u25BE" : "\u25B8"}</span>
       </button>
-      {open && <div className="detail-section-body">{children}</div>}
+      {open && (
+        <div className="detail-section-body" id={regionId} role="region">
+          {children}
+        </div>
+      )}
     </div>
   );
 }
