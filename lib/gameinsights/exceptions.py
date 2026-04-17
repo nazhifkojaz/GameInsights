@@ -39,12 +39,6 @@ class GameNotFoundError(GameInsightsError):
         self.identifier = identifier
         super().__init__(message or f"Game with identifier '{identifier}' was not found.")
 
-    # Backward compatibility: provide appid as an alias
-    @property
-    def appid(self) -> str:
-        """Alias for identifier for backward compatibility."""
-        return self.identifier
-
 
 class SourceUnavailableError(GameInsightsError):
     """A data source is unreachable after all retries are exhausted.

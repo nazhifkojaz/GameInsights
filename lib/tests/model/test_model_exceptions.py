@@ -18,8 +18,6 @@ class TestExceptionHierarchy:
         """Test GameNotFoundError stores identifier and has message."""
         exc = GameNotFoundError(identifier="12345")
         assert exc.identifier == "12345"
-        # Test backward compatibility alias
-        assert exc.appid == "12345"
         assert "12345" in str(exc)
         assert "not found" in str(exc).lower()
 
@@ -29,8 +27,6 @@ class TestExceptionHierarchy:
         exc = GameNotFoundError(identifier="12345", message=custom_msg)
         assert str(exc) == custom_msg
         assert exc.identifier == "12345"
-        # Test backward compatibility alias
-        assert exc.appid == "12345"
 
     def test_source_unavailable_error_attributes(self):
         """Test SourceUnavailableError stores source and reason."""
