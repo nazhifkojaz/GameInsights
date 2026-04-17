@@ -1,5 +1,4 @@
 import time
-import warnings
 from abc import ABC, abstractmethod
 from typing import Any, Literal, TypedDict
 from urllib.parse import urljoin
@@ -72,20 +71,6 @@ class BaseSource(ABC):
             self._session.mount("https://", adapter)
             self._session.mount("http://", adapter)
         return self._session
-
-    @staticmethod
-    def close_session() -> None:
-        """Deprecated. Session lifecycle is now managed by Collector.
-
-        This method is a no-op. Use ``Collector.close()`` or the
-        Collector as a context manager instead.
-        """
-        warnings.warn(
-            "BaseSource.close_session() is deprecated and has no effect. "
-            "Use Collector.close() or the Collector context manager instead.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
 
     @property
     @abstractmethod
