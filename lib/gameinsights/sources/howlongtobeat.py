@@ -287,11 +287,9 @@ class HowLongToBeat(BaseSource):
 
         response = self._make_request(url=f"{self.BASE_URL}game/{game_id}", headers=headers)
 
-        # Return None on synthetic errors or non-200 responses
         if response.status_code != 200:
             return None
 
-        # Extract __NEXT_DATA__ from the HTML
         match = re.search(
             r'<script id="__NEXT_DATA__".*?>(.*?)</script>',
             response.text,
@@ -388,7 +386,6 @@ class HowLongToBeat(BaseSource):
             else:
                 raw_value = data.get(label, None)
 
-            # Convert time fields from seconds to minutes
             if raw_value is not None and label in time_labels:
                 result[label] = cast(int, raw_value) // 60
             else:

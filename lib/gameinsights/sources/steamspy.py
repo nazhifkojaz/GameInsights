@@ -61,7 +61,6 @@ class SteamSpy(BaseSource):
 
         steam_appid = self._prepare_identifier(steam_appid, verbose)
 
-        # Prepare the params and make request
         params = {"request": "appdetails", "appid": steam_appid}
         response = self._make_request(params=params)
 
@@ -83,7 +82,6 @@ class SteamSpy(BaseSource):
         )
 
     def _transform_data(self, data: dict[str, Any]) -> dict[str, Any]:
-        # repack / process the data if needed
         tags = data.get("tags", [])
         tags = [tag for tag, count in tags.items()] if isinstance(tags, dict) else []
 

@@ -12,6 +12,7 @@ dependencies = [
     "fake-useragent>=2.2.0",
     "ratelimit>=2.2.1",
     "pydantic>=2.11.7",
+    "typing-extensions>=4.0",
 ]
 
 [project.optional-dependencies]

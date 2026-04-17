@@ -57,10 +57,8 @@ class SteamCharts(BaseSource):
             verbose=verbose,
         )
 
-        # Make sure steam_appid is string
         steam_appid = str(steam_appid)
 
-        # Prepare the headers and make the request to steamchart
         response = self._make_request(endpoint=steam_appid)
 
         if response.status_code != 200:
@@ -93,7 +91,7 @@ class SteamCharts(BaseSource):
                 "Failed to parse data, active player data table is not found.", verbose=verbose
             )
 
-        # Skip the "last 30 days" row
+        # SteamCharts prepends two summary rows (last 30 days + all-time) before the monthly history
         player_rows_result = active_player_data_table.find_all("tr")
         player_data_rows = [row for row in player_rows_result if isinstance(row, Tag)][2:]
 

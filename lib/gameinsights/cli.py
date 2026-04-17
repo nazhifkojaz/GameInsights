@@ -72,7 +72,7 @@ def _output_data(
         _has_pandas = True
     except ImportError:
         _has_pandas = False
-        pd = None  # type: ignore
+        pd = None  # type: ignore[assignment]
 
     if fmt == "json":
         # JSON works without pandas

@@ -48,14 +48,11 @@ async def test_get_game_cached(client):
     mock_data = {"steam_appid": "570", "name": "Dota 2"}
     client.mock_collector.get_games_data.return_value = [mock_data]
 
-    # First request
     response1 = await client.get("/games/570")
     assert response1.status_code == 200
 
-    # Second request
     response2 = await client.get("/games/570")
     assert response2.status_code == 200
     assert response2.json() == mock_data
 
-    # Should only be called once due to caching
     client.mock_collector.get_games_data.assert_called_once()

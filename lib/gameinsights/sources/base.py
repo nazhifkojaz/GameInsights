@@ -31,7 +31,6 @@ class ErrorResult(TypedDict):
 
 SourceResult = SuccessResult | ErrorResult
 
-# a custom error code for the synthetic response
 SYNTHETIC_ERROR_CODE = 599
 
 
@@ -156,11 +155,9 @@ class BaseSource(ABC):
         if endpoint:
             final_url = urljoin(final_url + "/", endpoint.rstrip("/"))
 
-        # Prepare headers with User-Agent
         if headers is None:
             headers = {"User-Agent": self._ua.random}
         else:
-            # Only add User-Agent if not already present
             if "User-Agent" not in headers:
                 headers = headers.copy()
                 headers["User-Agent"] = self._ua.random

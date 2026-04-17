@@ -54,43 +54,28 @@ class SteamStore(BaseSource):
 
     @property
     def region(self) -> str:
-        """Get the region for the Steam API."""
         return self._region
 
     @region.setter
     def region(self, value: str) -> None:
-        """Set the region for the Steam API.
-        Args:
-            value (str): Region for the API request.
-        """
         if self._region != value:
             self._region = value
 
     @property
     def language(self) -> str:
-        """Get the language for the Steam API."""
         return self._language
 
     @language.setter
     def language(self, value: str) -> None:
-        """Set the language for the Steam API.
-        Args:
-            value (str): Language for the API request.
-        """
         if self._language != value:
             self._language = value
 
     @property
     def api_key(self) -> str | None:
-        """Get the API key for the Steam API."""
         return self._api_key
 
     @api_key.setter
     def api_key(self, value: str) -> None:
-        """Set the API key for the Steam API.
-        Args:
-            value (str): API key for Steam API.
-        """
         if self._api_key != value:
             self._api_key = value
 
@@ -116,7 +101,6 @@ class SteamStore(BaseSource):
 
         steam_appid = self._prepare_identifier(steam_appid, verbose)
 
-        # Make the request to steam store API
         params = {"appids": steam_appid, "cc": self.region, "l": self.language}
         response = self._make_request(params=params)
 
@@ -127,7 +111,6 @@ class SteamStore(BaseSource):
                 verbose=verbose,
             )
 
-        # check if the response contains the expected data
         if steam_appid not in data or not data[steam_appid]["success"]:
             return self._build_error_result(
                 f"Failed to fetch data for appid {steam_appid}, or appid is not available in the specified region ({self.region}) or language ({self.language}).",
@@ -141,7 +124,6 @@ class SteamStore(BaseSource):
         )
 
     def _transform_data(self, data: dict[str, Any]) -> dict[str, Any]:
-        # repack / process the data if needed
         price_overview = data.get("price_overview") or {}
         release_date = data.get("release_date") or {}
         platforms = data.get("platforms") or {}
@@ -149,7 +131,7 @@ class SteamStore(BaseSource):
         categories = data.get("categories") or []
         ratings = data.get("ratings") or {}
 
-        return {  # Default to None
+        return {
             "steam_appid": data.get("steam_appid"),
             "name": data.get("name"),
             "type": data.get("type"),

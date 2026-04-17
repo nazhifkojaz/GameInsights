@@ -46,8 +46,6 @@ class GameDataModel(BaseModel):
     estimated_revenue: int | None = Field(
         default=None, description="estimated revenue in USD (via Boxleiter method)"
     )
-    # TODO: Implement total_revenue field - currently disabled pending data source verification
-    # total_revenue: float = Field(default=float("nan"))
     owners: int | None = Field(default=None)
     followers: int | None = Field(default=None, description="Steam wishlist/follower count")
     early_access: bool | None = Field(default=None, description="Whether game is in early access")
@@ -118,8 +116,6 @@ class GameDataModel(BaseModel):
         "metacritic_score",
         "copies_sold",
         "estimated_revenue",
-        # TODO: Re-enable when total_revenue field is implemented
-        # "total_revenue",
         "owners",
         "followers",
         "ccu",
@@ -153,7 +149,7 @@ class GameDataModel(BaseModel):
         mode="before",
     )
     def handle_integers(cls, v: str | int | float | None) -> int | None:
-        """convert x types to int"""
+        """Coerce numeric-like values to int; None and unparseable values become None."""
         if v is None:
             return None
         try:

@@ -2,6 +2,8 @@
 
 from unittest.mock import patch
 
+import pytest
+
 from gameinsights import Collector
 from gameinsights.sources.howlongtobeat import _SearchAuth
 
@@ -115,6 +117,7 @@ class TestGetUserData:
 
     def test_get_user_data_default_is_dataframe(self, monkeypatch):
         """Test that default return_as is 'dataframe'."""
+        pd = pytest.importorskip("pandas")
         from gameinsights.sources import HowLongToBeat, SteamUser
 
         def mock_get_token(*args, **kwargs):
@@ -136,8 +139,6 @@ class TestGetUserData:
         with patch.object(SteamUser, "fetch", return_value=mock_response):
             with patch("time.sleep"):
                 collector = Collector()
-                # Default should be dataframe (not list)
-                import pandas as pd
 
                 df = collector.get_user_data("76561198000000000")
 
@@ -145,6 +146,7 @@ class TestGetUserData:
 
     def test_get_user_data_return_as_list(self, monkeypatch):
         """Test get_user_data with return_as='list'."""
+        pytest.importorskip("pandas")
         from gameinsights.sources import HowLongToBeat, SteamUser
 
         def mock_get_token(*args, **kwargs):

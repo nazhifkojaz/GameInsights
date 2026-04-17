@@ -97,14 +97,12 @@ class Collector:
         self.period = period
         self._closed = False
 
-        # Create session before initializing sources
         self._session = self._create_session()
 
         try:
             self._init_sources()
             self._init_sources_config()
         except Exception:
-            # Clean up session if initialization fails
             self._session.close()
             raise
 
@@ -448,7 +446,6 @@ class Collector:
               the function does not return a (data, results) tuple even if include_failures=True.
               The raise_on_error parameter takes precedence over include_failures.
         """
-        # Add input validation for raise_on_error mode
         if raise_on_error and not steam_appids:
             raise InvalidRequestError("steam_appids must be a non-empty string or list.")
 
@@ -474,10 +471,8 @@ class Collector:
                 result.append(payload)
                 all_results.append(FetchResult(identifier=str(appid), success=True, data=payload))
             except GameInsightsError as e:
-                # Re-raise if raise_on_error is True
                 if raise_on_error:
                     raise
-                # Otherwise log and continue (existing behavior)
                 self.logger.log(
                     f"Error fetching data for game {appid}: {e}",
                     level="error",
@@ -731,7 +726,6 @@ class Collector:
             if source_data["success"]:
                 raw_data.update({key: source_data["data"][key] for key in config.fields})
             elif raise_on_primary_failure and config.is_primary:
-                # Primary source failed - raise appropriate exception
                 self._raise_for_fetch_failure(
                     source_name=config.source.__class__.__name__,
                     error_message=source_data["error"],
@@ -809,19 +803,9 @@ class Collector:
         return result
 
     def __enter__(self) -> "Collector":
-        """Enter the context manager.
-
-        Returns:
-            The Collector instance.
-        """
         return self
 
     def __exit__(self, *args: object) -> None:
-        """Exit the context manager and close the session.
-
-        Args:
-            *args: Exception info from the with block (unused).
-        """
         try:
             self.close()
         except Exception as e:

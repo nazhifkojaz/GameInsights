@@ -24,8 +24,6 @@ _STEAMUSER_LABELS = (
 
 
 class CommunityVisibilityState(IntEnum):
-    PRIVATE = 1
-    ONLY_FRIENDS = 2
     PUBLIC = 3
 
 
