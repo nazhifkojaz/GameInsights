@@ -2,30 +2,10 @@ from typing import Any
 
 import requests
 
+from gameinsights.sources._parsers import transform_steamspy
+from gameinsights.sources._schemas import _STEAMSPY_LABELS
 from gameinsights.sources.base import BaseSource, SourceResult, SuccessResult
 from gameinsights.utils.ratelimit import logged_rate_limited
-
-_STEAMSPY_LABELS = (
-    "steam_appid",
-    "name",
-    "developers",
-    "publishers",
-    "positive_reviews",
-    "negative_reviews",
-    "owners",
-    "average_forever",
-    "average_playtime_min",
-    "average_2weeks",
-    "median_forever",
-    "median_2weeks",
-    "price",
-    "initial_price",
-    "discount",
-    "ccu",
-    "languages",
-    "genres",
-    "tags",
-)
 
 
 class SteamSpy(BaseSource):
@@ -82,36 +62,4 @@ class SteamSpy(BaseSource):
         )
 
     def _transform_data(self, data: dict[str, Any]) -> dict[str, Any]:
-        tags = data.get("tags", [])
-        tags = [tag for tag, count in tags.items()] if isinstance(tags, dict) else []
-
-        # Split comma-separated languages string into a proper list
-        raw_languages = data.get("languages")
-        if isinstance(raw_languages, str):
-            languages = [lang.strip() for lang in raw_languages.split(",") if lang.strip()]
-        elif isinstance(raw_languages, list):
-            languages = raw_languages
-        else:
-            languages = []
-
-        return {
-            "steam_appid": data.get("appid", None),
-            "name": data.get("name", None),
-            "developers": data.get("developer", None),
-            "publishers": data.get("publisher", None),
-            "positive_reviews": data.get("positive", None),
-            "negative_reviews": data.get("negative", None),
-            "owners": data.get("owners", None),
-            "average_forever": data.get("average_forever", None),
-            "average_playtime_min": data.get("average_forever", None),
-            "average_2weeks": data.get("average_2weeks", None),
-            "median_forever": data.get("median_forever", None),
-            "median_2weeks": data.get("median_2weeks", None),
-            "price": data.get("price", None),
-            "initial_price": data.get("initialprice", None),
-            "discount": data.get("discount", None),
-            "ccu": data.get("ccu", None),
-            "languages": languages,
-            "genres": data.get("genre", None),
-            "tags": tags,
-        }
+        return transform_steamspy(data)

@@ -1,30 +1,11 @@
-from enum import IntEnum
 from typing import Any, Literal
 
 import requests
 
+from gameinsights.sources._parsers import transform_steamuser
+from gameinsights.sources._schemas import _STEAMUSER_LABELS, CommunityVisibilityState
 from gameinsights.sources.base import BaseSource, SourceResult, SuccessResult
 from gameinsights.utils.ratelimit import logged_rate_limited
-
-_STEAMUSER_LABELS = (
-    "steamid",
-    "community_visibility_state",
-    "profile_state",
-    "persona_name",
-    "profile_url",
-    "last_log_off",
-    "real_name",
-    "time_created",
-    "loc_country_code",
-    "loc_state_code",
-    "loc_city_id",
-    "owned_games",
-    "recently_played_games",
-)
-
-
-class CommunityVisibilityState(IntEnum):
-    PUBLIC = 3
 
 
 class SteamUser(BaseSource):
@@ -210,42 +191,4 @@ class SteamUser(BaseSource):
         data: dict[str, Any],
         data_type: Literal["summary", "games_owned", "recent_games"] = "summary",
     ) -> dict[str, Any]:
-        if data_type == "games_owned":
-            return {
-                "game_count": data.get("game_count", 0),
-                "games": data.get("games", []),
-            }
-        elif data_type == "recent_games":
-            total_playtime_2weeks = 0
-            games = data.get("games", [])
-            games_data: list[dict[str, Any]] = []
-
-            for game in games:
-                game_dict = {
-                    "appid": game.get("appid", None),
-                    "name": game.get("name", None),
-                    "playtime_2weeks": game.get("playtime_2weeks", 0),
-                    "playtime_forever": game.get("playtime_forever", 0),
-                }
-                total_playtime_2weeks += game_dict["playtime_2weeks"]
-                games_data.append(game_dict)
-
-            return {
-                "games_count": data.get("total_count", 0),
-                "total_playtime_2weeks": total_playtime_2weeks,
-                "games": games_data,
-            }
-        else:
-            return {
-                "steamid": data.get("steamid", None),
-                "community_visibility_state": data.get("communityvisibilitystate", 1),
-                "profile_state": data.get("profilestate", None),
-                "persona_name": data.get("personaname", None),
-                "profile_url": data.get("profileurl", None),
-                "last_log_off": data.get("lastlogoff", None),
-                "real_name": data.get("realname", None),
-                "time_created": data.get("timecreated", None),
-                "loc_country_code": data.get("loccountrycode", None),
-                "loc_state_code": data.get("locstatecode", None),
-                "loc_city_id": data.get("loccityid", None),
-            }
+        return transform_steamuser(data, data_type=data_type)

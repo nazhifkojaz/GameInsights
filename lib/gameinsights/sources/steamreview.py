@@ -1,49 +1,16 @@
 import time
-from typing import Any, Literal, TypedDict, cast
+from typing import Any, Literal, cast
 
 import requests
 
+from gameinsights.sources._parsers import transform_steamreview
+from gameinsights.sources._schemas import (
+    _STEAMREVIEW_REVIEW_LABELS,
+    _STEAMREVIEW_SUMMARY_LABELS,
+    SteamReviewResponse,
+)
 from gameinsights.sources.base import BaseSource, SourceResult, SuccessResult
 from gameinsights.utils.ratelimit import logged_rate_limited
-
-_STEAMREVIEW_SUMMARY_LABELS = (
-    "review_score",
-    "review_score_desc",
-    "total_positive",
-    "total_negative",
-    "total_reviews",
-)
-
-_STEAMREVIEW_REVIEW_LABELS = (
-    "recommendation_id",
-    "author_steamid",
-    "author_num_games_owned",
-    "author_num_reviews",
-    "author_playtime_forever",
-    "author_playtime_last_two_weeks",
-    "author_playtime_at_review",
-    "author_last_played",
-    "language",
-    "review",
-    "timestamp_created",
-    "timestamp_updated",
-    "voted_up",
-    "votes_up",
-    "votes_funny",
-    "weighted_vote_score",
-    "comment_count",
-    "steam_purchase",
-    "received_for_free",
-    "written_during_early_access",
-    "primarily_steam_deck",
-)
-
-
-class SteamReviewResponse(TypedDict):
-    success: bool
-    cursor: str | None
-    reviews: list[dict[str, Any]]
-    query_summary: dict[str, Any]
 
 
 class SteamReview(BaseSource):
@@ -185,36 +152,4 @@ class SteamReview(BaseSource):
         data: dict[str, Any],
         data_type: Literal["summary", "review"] = "summary",
     ) -> dict[str, Any]:
-        if data_type == "summary":
-            return {
-                "review_score": data.get("review_score", None),
-                "review_score_desc": data.get("review_score_desc", None),
-                "total_positive": data.get("total_positive", None),
-                "total_negative": data.get("total_negative", None),
-                "total_reviews": data.get("total_reviews", None),
-            }
-        else:
-            author = data.get("author", {})
-            return {
-                "recommendation_id": data.get("recommendationid", None),
-                "author_steamid": author.get("steamid", None),
-                "author_num_games_owned": author.get("num_games_owned", None),
-                "author_num_reviews": author.get("num_reviews", None),
-                "author_playtime_forever": author.get("playtime_forever", None),
-                "author_playtime_last_two_weeks": author.get("playtime_last_two_weeks", None),
-                "author_playtime_at_review": author.get("playtime_at_review", None),
-                "author_last_played": author.get("last_played", None),
-                "language": data.get("language", None),
-                "review": data.get("review", None),
-                "timestamp_created": data.get("timestamp_created", None),
-                "timestamp_updated": data.get("timestamp_updated", None),
-                "voted_up": data.get("voted_up", None),
-                "votes_up": data.get("votes_up", None),
-                "votes_funny": data.get("votes_funny", None),
-                "weighted_vote_score": data.get("weighted_vote_score", None),
-                "comment_count": data.get("comment_count", None),
-                "steam_purchase": data.get("steam_purchase", None),
-                "received_for_free": data.get("received_for_free", None),
-                "written_during_early_access": data.get("written_during_early_access", None),
-                "primarily_steam_deck": data.get("primarily_steam_deck", None),
-            }
+        return transform_steamreview(data, data_type=data_type)

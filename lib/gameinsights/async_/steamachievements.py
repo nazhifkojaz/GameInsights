@@ -4,8 +4,9 @@ from typing import Any
 import aiohttp
 
 from gameinsights.async_.base import AsyncBaseSource
+from gameinsights.sources._parsers import transform_steamachievements
+from gameinsights.sources._schemas import _STEAMACHIEVEMENT_LABELS
 from gameinsights.sources.base import SourceResult, SuccessResult
-from gameinsights.sources.steamachievements import _STEAMACHIEVEMENT_LABELS
 from gameinsights.utils.async_ratelimit import async_rate_limited
 
 
@@ -86,83 +87,8 @@ class AsyncSteamAchievements(AsyncBaseSource):
     def _transform_data(
         self, data: dict[str, Any], schema_data: dict[str, Any] | None = None
     ) -> dict[str, Any]:
-        percentage_data = data.get("achievementpercentages", {}).get("achievements", [])
-        if not percentage_data:
-            return {
-                "achievements_count": None,
-                "achievements_percentage_average": None,
-                "achievements_list": None,
-            }
-
-        base_achievements, achievements_count, achievements_percentage_average = (
-            self._calculate_average_percentage(percentage_data)
+        return transform_steamachievements(
+            data,
+            schema_data=schema_data,
+            log_fn=lambda msg: self.logger.log(msg, level="debug", verbose=True),
         )
-
-        schema_achievements = (
-            schema_data.get("game", {}).get("availableGameStats", {}).get("achievements", [])
-            if schema_data
-            else None
-        )
-
-        achievements_list = (
-            self._merge_achievements(
-                base_achievements=base_achievements, schema_data=schema_achievements
-            )
-            if schema_achievements
-            else base_achievements
-        )
-
-        return {
-            "achievements_count": achievements_count,
-            "achievements_percentage_average": achievements_percentage_average,
-            "achievements_list": achievements_list,
-        }
-
-    def _calculate_average_percentage(
-        self, achievements: list[dict[str, Any]]
-    ) -> tuple[list[dict[str, Any]], int, float]:
-        transformed = []
-        total = 0.0
-        for entry in achievements:
-            try:
-                percentage = float(entry["percent"])
-                transformed.append({"name": entry["name"], "percent": percentage})
-                total += percentage
-            except (KeyError, ValueError):
-                continue
-        count = len(transformed)
-        average = round(total / count, 2) if count > 0 else 0.0
-        return transformed, count, average
-
-    def _merge_achievements(
-        self,
-        base_achievements: list[dict[str, Any]],
-        schema_data: list[dict[str, Any]],
-    ) -> list[dict[str, Any]]:
-        schema_lookup = {}
-        for entry in schema_data:
-            name = entry.get("name")
-            display_name = entry.get("displayName")
-            if not name or not display_name:
-                continue
-            schema_lookup[name] = {
-                "display_name": display_name,
-                "hidden": entry.get("hidden"),
-                "description": entry.get("description"),
-            }
-
-        merged = []
-        for acv in base_achievements:
-            name = acv["name"]
-            percent = acv["percent"]
-            schema_info = schema_lookup.get(name, {})
-            merged.append(
-                {
-                    "name": name,
-                    "percent": percent,
-                    "display_name": schema_info.get("display_name"),
-                    "hidden": schema_info.get("hidden"),
-                    "description": schema_info.get("description"),
-                }
-            )
-        return merged

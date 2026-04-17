@@ -2,29 +2,10 @@ from typing import Any
 
 import requests
 
+from gameinsights.sources._parsers import transform_steamstore
+from gameinsights.sources._schemas import _STEAM_LABELS
 from gameinsights.sources.base import BaseSource, SourceResult, SuccessResult
 from gameinsights.utils.ratelimit import logged_rate_limited
-
-_STEAM_LABELS = (
-    "steam_appid",
-    "name",
-    "type",
-    "is_free",
-    "developers",
-    "publishers",
-    "price_currency",
-    "price_initial",
-    "price_final",
-    "platforms",
-    "categories",
-    "genres",
-    "metacritic_score",
-    "recommendations",
-    "achievements",
-    "is_coming_soon",
-    "release_date",
-    "content_rating",
-)
 
 
 class SteamStore(BaseSource):
@@ -124,54 +105,4 @@ class SteamStore(BaseSource):
         )
 
     def _transform_data(self, data: dict[str, Any]) -> dict[str, Any]:
-        price_overview = data.get("price_overview") or {}
-        release_date = data.get("release_date") or {}
-        platforms = data.get("platforms") or {}
-        genres = data.get("genres") or []
-        categories = data.get("categories") or []
-        ratings = data.get("ratings") or {}
-
-        return {
-            "steam_appid": data.get("steam_appid"),
-            "name": data.get("name"),
-            "type": data.get("type"),
-            "is_coming_soon": release_date.get("coming_soon"),
-            "release_date": release_date.get("date"),
-            "is_free": data.get("is_free"),
-            "price_currency": price_overview.get("currency"),
-            "price_initial": (
-                price_overview.get("initial") / 100  # type: ignore[operator]
-                if isinstance(price_overview, dict) and price_overview.get("initial") is not None
-                else None
-            ),
-            "price_final": (
-                price_overview.get("final") / 100  # type: ignore[operator]
-                if isinstance(price_overview, dict) and price_overview.get("final") is not None
-                else None
-            ),
-            "developers": data.get("developers"),
-            "publishers": data.get("publishers"),
-            "platforms": [
-                platform
-                for platform, is_supported in platforms.items()
-                if isinstance(platforms, dict) and is_supported
-            ],
-            "categories": [category.get("description") for category in categories],
-            "genres": [genre.get("description") for genre in genres],
-            "metacritic_score": data.get("metacritic", {}).get("score"),
-            "recommendations": (
-                data.get("recommendations", {}).get("total")
-                if isinstance(data.get("recommendations"), dict)
-                else data.get("recommendations")
-            ),
-            "achievements": data.get("achievements", {}).get("total"),
-            "content_rating": (
-                [
-                    {"rating_type": rating_type, "rating": rating.get("rating")}
-                    for rating_type, rating in ratings.items()
-                    if isinstance(ratings, dict) and isinstance(rating, dict)
-                ]
-                if ratings
-                else []
-            ),
-        }
+        return transform_steamstore(data)

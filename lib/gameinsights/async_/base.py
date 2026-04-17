@@ -13,6 +13,21 @@ import aiohttp
 from fake_useragent import UserAgent
 
 from gameinsights._types import HttpMethod
+from gameinsights.sources._helpers import (
+    apply_label_filter as _apply_label_filter,
+)
+from gameinsights.sources._helpers import (
+    build_error_result as _build_error_result,
+)
+from gameinsights.sources._helpers import (
+    fetch_and_parse_json as _fetch_and_parse_json,
+)
+from gameinsights.sources._helpers import (
+    filter_valid_labels as _filter_valid_labels,
+)
+from gameinsights.sources._helpers import (
+    prepare_identifier as _prepare_identifier,
+)
 from gameinsights.sources.base import (
     SYNTHETIC_ERROR_CODE,
     ErrorResult,
@@ -200,67 +215,43 @@ class AsyncBaseSource(ABC):
     # ------------------------------------------------------------------
 
     def _build_error_result(self, error_message: str, verbose: bool = True) -> ErrorResult:
-        self.logger.log(error_message, level="error", verbose=verbose)
-        return ErrorResult(success=False, error=error_message)
+        return _build_error_result(error_message, self.logger.log, verbose)
 
     def _prepare_identifier(self, identifier: str, verbose: bool = True) -> str:
-        identifier_str = str(identifier)
-        self.logger.log(
-            f"Fetching data for appid {identifier_str}.",
-            level="info",
-            verbose=verbose,
-        )
-        return identifier_str
+        return _prepare_identifier(identifier, self.logger.log, verbose)
 
     def _fetch_and_parse_json(
         self,
         response: _AsyncResponse,
         verbose: bool = True,
     ) -> dict[str, Any] | None:
-        if response.status_code != 200:
-            return None
-        try:
-            data = response.json()
-            if isinstance(data, dict):
-                return data
-            return None
-        except (ValueError, aiohttp.ContentTypeError):
-            return None
+        return _fetch_and_parse_json(
+            response, verbose, extra_json_exceptions=(aiohttp.ContentTypeError,)
+        )
 
     def _filter_valid_labels(
         self,
         selected_labels: list[str],
         valid_labels: list[str] | tuple[str, ...] | None = None,
     ) -> list[str]:
-        validation_set = (
-            frozenset(valid_labels) if valid_labels is not None else self._valid_labels_set
+        return _filter_valid_labels(
+            selected_labels,
+            valid_labels=valid_labels,
+            class_valid_labels_set=self._valid_labels_set,
+            class_valid_labels=self._valid_labels,
+            log_fn=self.logger.log,
         )
-        valid: list[str] = []
-        invalid: list[str] = []
-        for label in selected_labels:
-            (valid if label in validation_set else invalid).append(label)
-        if invalid:
-            reference_labels = valid_labels if valid_labels is not None else self._valid_labels
-            self.logger.log(
-                f"Ignoring the following invalid labels: {invalid}, "
-                f"valid labels are: {reference_labels}",
-                level="warning",
-                verbose=True,
-            )
-        return valid
 
     def _apply_label_filter(
         self,
         data: dict[str, Any],
         selected_labels: list[str] | None,
     ) -> dict[str, Any]:
-        if selected_labels:
-            return {
-                label: data[label]
-                for label in self._filter_valid_labels(selected_labels)
-                if label in data
-            }
-        return data
+        if not selected_labels:
+            return data
+        return _apply_label_filter(
+            data, selected_labels, self._filter_valid_labels(selected_labels)
+        )
 
     # ------------------------------------------------------------------
     # Abstract interface

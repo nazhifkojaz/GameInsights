@@ -12,16 +12,10 @@ from typing import Any
 
 import requests
 
+from gameinsights.sources._parsers import transform_protondb
+from gameinsights.sources._schemas import _PROTONDB_LABELS
 from gameinsights.sources.base import BaseSource, SourceResult, SuccessResult
 from gameinsights.utils.ratelimit import logged_rate_limited
-
-_PROTONDB_LABELS = (
-    "protondb_tier",
-    "protondb_score",
-    "protondb_trending",
-    "protondb_confidence",
-    "protondb_total",
-)
 
 
 class ProtonDB(BaseSource):
@@ -106,25 +100,4 @@ class ProtonDB(BaseSource):
         return SuccessResult(success=True, data=data_packed)
 
     def _transform_data(self, data: dict[str, Any]) -> dict[str, Any]:
-        """Transform ProtonDB API summary into the expected format.
-
-        API fields mapped:
-            - tier -> protondb_tier (e.g., "platinum", "gold", "silver", "bronze", "pending")
-            - score -> protondb_score (float 0-1, e.g., 0.96)
-            - trendingTier -> protondb_trending (tier string for recent reports)
-            - confidence -> protondb_confidence (e.g., "strong", "good", "inadequate")
-            - total -> protondb_total (integer count of reports)
-
-        Args:
-            data: Raw summary data from ProtonDB API.
-
-        Returns:
-            Dict with valid labels only.
-        """
-        return {
-            "protondb_tier": data.get("tier"),
-            "protondb_score": data.get("score"),
-            "protondb_trending": data.get("trendingTier"),
-            "protondb_confidence": data.get("confidence"),
-            "protondb_total": data.get("total"),
-        }
+        return transform_protondb(data)

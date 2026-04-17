@@ -4,8 +4,9 @@ from typing import Any, Literal
 import aiohttp
 
 from gameinsights.async_.base import AsyncBaseSource
+from gameinsights.sources._parsers import transform_steamuser
+from gameinsights.sources._schemas import _STEAMUSER_LABELS, CommunityVisibilityState
 from gameinsights.sources.base import SourceResult, SuccessResult
-from gameinsights.sources.steamuser import _STEAMUSER_LABELS, CommunityVisibilityState
 from gameinsights.utils.async_ratelimit import async_rate_limited
 
 
@@ -132,36 +133,4 @@ class AsyncSteamUser(AsyncBaseSource):
         data: dict[str, Any],
         data_type: Literal["summary", "games_owned", "recent_games"] = "summary",
     ) -> dict[str, Any]:
-        if data_type == "games_owned":
-            return {"game_count": data.get("game_count", 0), "games": data.get("games", [])}
-        elif data_type == "recent_games":
-            total_playtime_2weeks = 0
-            games_data: list[dict[str, Any]] = []
-            for game in data.get("games", []):
-                game_dict = {
-                    "appid": game.get("appid"),
-                    "name": game.get("name"),
-                    "playtime_2weeks": game.get("playtime_2weeks", 0),
-                    "playtime_forever": game.get("playtime_forever", 0),
-                }
-                total_playtime_2weeks += game_dict["playtime_2weeks"]
-                games_data.append(game_dict)
-            return {
-                "games_count": data.get("total_count", 0),
-                "total_playtime_2weeks": total_playtime_2weeks,
-                "games": games_data,
-            }
-        else:
-            return {
-                "steamid": data.get("steamid"),
-                "community_visibility_state": data.get("communityvisibilitystate", 1),
-                "profile_state": data.get("profilestate"),
-                "persona_name": data.get("personaname"),
-                "profile_url": data.get("profileurl"),
-                "last_log_off": data.get("lastlogoff"),
-                "real_name": data.get("realname"),
-                "time_created": data.get("timecreated"),
-                "loc_country_code": data.get("loccountrycode"),
-                "loc_state_code": data.get("locstatecode"),
-                "loc_city_id": data.get("loccityid"),
-            }
+        return transform_steamuser(data, data_type=data_type)
