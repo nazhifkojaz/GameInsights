@@ -1,5 +1,4 @@
 from .base import BaseSource, ErrorResult, SourceResult, SuccessResult
-from .gamalytic import Gamalytic
 from .howlongtobeat import HowLongToBeat
 from .protondb import ProtonDB
 from .steamachievements import SteamAchievements
@@ -12,7 +11,6 @@ from .steamuser import SteamUser
 __all__ = [
     "BaseSource",
     "ErrorResult",
-    "Gamalytic",
     "HowLongToBeat",
     "ProtonDB",
     "SourceResult",

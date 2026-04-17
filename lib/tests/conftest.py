@@ -8,7 +8,6 @@ import requests
 
 # Import all fixtures from tests/fixtures/ directory
 # Pytest will automatically make these available to all tests
-from tests.fixtures.gamalytic_fixtures import *  # noqa: F403
 from tests.fixtures.hltb_fixtures import *  # noqa: F403
 from tests.fixtures.model_fixtures import *  # noqa: F403
 from tests.fixtures.protondb_fixtures import *  # noqa: F403
@@ -180,7 +179,6 @@ def collector_with_mocks(mock_request_response, monkeypatch, request):
     """Collector instance wired with mocked sources for integration-style tests."""
     from gameinsights.collector import Collector
     from gameinsights.sources import (
-        Gamalytic,
         HowLongToBeat,
         ProtonDB,
         SteamAchievements,
@@ -200,14 +198,6 @@ def collector_with_mocks(mock_request_response, monkeypatch, request):
     monkeypatch.setattr(HowLongToBeat, "_get_search_auth", mock_get_auth)
 
     sources_payloads = [
-        (
-            Gamalytic,
-            {
-                "mock_kwargs": {
-                    "json_data": request.getfixturevalue("gamalytic_success_response_data")
-                }
-            },
-        ),
         (
             HowLongToBeat,
             {"mock_kwargs": {"text_data": request.getfixturevalue("hltb_success_response_data")}},
@@ -274,7 +264,6 @@ def collector_with_one_failed_source(mock_request_response, monkeypatch, request
     """
     from gameinsights.collector import Collector
     from gameinsights.sources import (
-        Gamalytic,
         HowLongToBeat,
         ProtonDB,
         SteamAchievements,
@@ -294,14 +283,6 @@ def collector_with_one_failed_source(mock_request_response, monkeypatch, request
     monkeypatch.setattr(HowLongToBeat, "_get_search_auth", mock_get_auth)
 
     sources_payloads = [
-        (
-            Gamalytic,
-            {
-                "mock_kwargs": {
-                    "json_data": request.getfixturevalue("gamalytic_success_response_data")
-                }
-            },
-        ),
         (
             HowLongToBeat,
             {"mock_kwargs": {"text_data": request.getfixturevalue("hltb_success_response_data")}},

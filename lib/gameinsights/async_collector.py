@@ -64,7 +64,6 @@ class AsyncCollector:
         region: str = "us",
         language: str = "english",
         steam_api_key: str | None = None,
-        gamalytic_api_key: str | None = None,
         boxleiter_multiplier: int = 30,
         calls: int = 60,
         period: int = 60,
@@ -72,7 +71,6 @@ class AsyncCollector:
         self._region = region
         self._language = language
         self._steam_api_key = steam_api_key
-        self._gamalytic_api_key = gamalytic_api_key
         self._boxleiter_multiplier = boxleiter_multiplier
         self.calls = calls
         self.period = period
@@ -142,8 +140,6 @@ class AsyncCollector:
                 ],
                 is_primary=True,
             ),
-            # DISABLED: Gamalytic free endpoint removed. Re-enable by uncommenting
-            # when the endpoint is available again or a replacement is found.
             AsyncSourceConfig(
                 self.steamspy,
                 ["ccu", "tags", "discount", "average_playtime_min", "languages"],

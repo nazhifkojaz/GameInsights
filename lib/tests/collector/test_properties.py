@@ -66,15 +66,6 @@ class TestCollectorProperties:
         # SteamAchievements and SteamUser may not be instantiated without the key
         # but the collector stores it for when they are created
 
-    def test_gamalytic_api_key_property_setter_stores_key(self):
-        """Test that setting gamalytic_api_key stores the key on the collector."""
-        collector = Collector()
-
-        test_key = "GAMALYTIC_KEY_67890"  # gitleaks:allow - test value only
-        collector.gamalytic_api_key = test_key
-
-        assert collector._gamalytic_api_key == test_key
-
     def test_property_setter_idempotent(self):
         """Test that setting property to same value doesn't trigger updates."""
         collector = Collector()
@@ -98,12 +89,10 @@ class TestCollectorConfiguration:
     def test_collector_initialization_with_api_keys(self):
         """Test Collector initialization with API keys."""
         steam_key = "STEAM_KEY"
-        gamalytic_key = "GAMALYTIC_KEY"
 
-        collector = Collector(steam_api_key=steam_key, gamalytic_api_key=gamalytic_key)
+        collector = Collector(steam_api_key=steam_key)
 
         assert collector._steam_api_key == steam_key
-        assert collector._gamalytic_api_key == gamalytic_key
 
     def test_collector_initialization_with_region_language(self):
         """Test Collector initialization with region and language."""

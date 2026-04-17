@@ -23,10 +23,8 @@ class DummyCollector:
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         steamstore = DummySource("SteamStore")
-        gamalytic = DummySource("Gamalytic")
         self._id_based_sources = [
             SourceConfig(steamstore, ["steam_appid", "name", "price_final"]),
-            SourceConfig(gamalytic, ["copies_sold"]),
         ]
         self._name_based_sources: list[SourceConfig] = []
         self._records = [

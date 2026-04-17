@@ -70,7 +70,6 @@ class Collector:
         region: str = "us",
         language: str = "english",
         steam_api_key: str | None = None,
-        gamalytic_api_key: str | None = None,
         boxleiter_multiplier: int = 30,
         calls: int = 60,
         period: int = 60,
@@ -81,8 +80,6 @@ class Collector:
             region: Region for the API request. Default is "us".
             language: Language for the API request. Default is "english".
             steam_api_key: Optional API key for Steam API.
-            gamalytic_api_key: Optional API key for Gamalytic API.
-                Currently unused (Gamalytic source disabled).
             boxleiter_multiplier: Multiplier for Boxleiter sales estimation.
                 Default is 30 (typical modern median for post-2020 games).
             calls: Max number of API calls allowed per period. Default is 60.
@@ -91,7 +88,6 @@ class Collector:
         self._region = region
         self._language = language
         self._steam_api_key = steam_api_key
-        self._gamalytic_api_key = gamalytic_api_key
         self._boxleiter_multiplier = boxleiter_multiplier
         self.calls = calls
         self.period = period
@@ -183,20 +179,6 @@ class Collector:
                 ],
                 is_primary=True,  # SteamStore is the primary source
             ),
-            # DISABLED: Gamalytic free endpoint removed. Re-enable by uncommenting
-            # when the endpoint is available again or a replacement is found.
-            # SourceConfig(
-            #     self.gamalytic,
-            #     [
-            #         "average_playtime_h",
-            #         "copies_sold",
-            #         "estimated_revenue",
-            #         "owners",
-            #         "languages",
-            #         "followers",
-            #         "early_access",
-            #     ],
-            # ),
             SourceConfig(
                 self.steamspy,
                 ["ccu", "tags", "discount", "average_playtime_min", "languages"],
@@ -335,15 +317,6 @@ class Collector:
             self.steamstore.api_key = value
             self.steamachievements.api_key = value
             self.steamuser.api_key = value
-
-    @property
-    def gamalytic_api_key(self) -> str | None:
-        return self._gamalytic_api_key
-
-    @gamalytic_api_key.setter
-    def gamalytic_api_key(self, value: str) -> None:
-        if self._gamalytic_api_key != value:
-            self._gamalytic_api_key = value
 
     def get_user_data(
         self,

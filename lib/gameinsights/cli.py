@@ -145,7 +145,7 @@ def build_collect_parser() -> argparse.ArgumentParser:
         "-s",
         action="append",
         default=[],
-        help="Limit output to specific sources (e.g., steamstore, steamspy, gamalytic).",
+        help="Limit output to specific sources (e.g., steamstore, steamspy).",
     )
     parser.add_argument(
         "--mode",
@@ -181,11 +181,6 @@ def build_collect_parser() -> argparse.ArgumentParser:
         help="Steam Web API key (or set STEAM_WEB_API_KEY).",
     )
     parser.add_argument(
-        "--gamalytic-api-key",
-        default=None,
-        help="Gamalytic API key, if available.",
-    )
-    parser.add_argument(
         "--quiet",
         action="store_true",
         help="Suppress progress logging.",
@@ -211,7 +206,6 @@ def _run_collect(args: argparse.Namespace) -> int:
         region=args.region,
         language=args.language,
         steam_api_key=args.steam_api_key or None,
-        gamalytic_api_key=args.gamalytic_api_key or None,
         calls=args.calls,
         period=args.period,
     ) as collector:

@@ -4,7 +4,6 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 class Settings(BaseSettings):
     steam_api_key: SecretStr | None = None
-    gamalytic_api_key: SecretStr | None = None
     region: str = "us"
     language: str = "english"
     rate_limit_calls: int = 60

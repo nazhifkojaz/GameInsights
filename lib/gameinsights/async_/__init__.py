@@ -1,7 +1,6 @@
 """Async source implementations for gameinsights."""
 
 from .base import AsyncBaseSource
-from .gamalytic import AsyncGamalytic
 from .howlongtobeat import AsyncHowLongToBeat
 from .protondb import AsyncProtonDB
 from .steamachievements import AsyncSteamAchievements
@@ -13,7 +12,6 @@ from .steamuser import AsyncSteamUser
 
 __all__ = [
     "AsyncBaseSource",
-    "AsyncGamalytic",
     "AsyncHowLongToBeat",
     "AsyncProtonDB",
     "AsyncSteamAchievements",
