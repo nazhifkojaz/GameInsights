@@ -1,6 +1,6 @@
 import time
 from abc import ABC, abstractmethod
-from typing import Any, Literal, TypedDict
+from typing import Any, Generic, Literal, TypedDict, TypeVar
 from urllib.parse import urljoin
 
 import requests
@@ -15,12 +15,15 @@ from requests.exceptions import (
     TooManyRedirects,
 )
 
+from gameinsights._types import HttpMethod
 from gameinsights.utils import LoggerWrapper
 
+T = TypeVar("T")
 
-class SuccessResult(TypedDict):
+
+class SuccessResult(TypedDict, Generic[T]):
     success: Literal[True]
-    data: dict[str, Any]
+    data: T
 
 
 class ErrorResult(TypedDict):
@@ -28,7 +31,7 @@ class ErrorResult(TypedDict):
     error: str
 
 
-SourceResult = SuccessResult | ErrorResult
+SourceResult = SuccessResult[dict[str, Any]] | ErrorResult
 
 SYNTHETIC_ERROR_CODE = 599
 
@@ -92,7 +95,7 @@ class BaseSource(ABC):
     @abstractmethod
     def fetch(
         self, appid: str, verbose: bool = True, selected_labels: list[str] | None = None
-    ) -> SuccessResult | ErrorResult:
+    ) -> SuccessResult[dict[str, Any]] | ErrorResult:
         """Abstract method to fetch data from the source.
 
         Args:
@@ -113,7 +116,7 @@ class BaseSource(ABC):
         params: dict[str, Any] | None = None,
         json: dict[str, Any] | None = None,
         data: str | bytes | None = None,
-        method: Literal["GET", "POST"] = "GET",
+        method: HttpMethod = "GET",
         retries: int = 3,
         backoff_factor: float = 0.5,
         timeout: float | tuple[float, float] = (30, 60),
@@ -127,7 +130,7 @@ class BaseSource(ABC):
             params (dict | None): Optional query parameters dictionary
             json (dict | None): Optional JSON body for POST requests (auto-serialized)
             data (str | bytes | None): Optional raw body for POST requests
-            method (Literal["GET", "POST"]): HTTP method to use (default: "GET")
+            method (HttpMethod): HTTP method to use (default: "GET")
             retries (int): Max number of retries
             backoff_factor (float): Multiplier for sleep/cooldown between retries
             timeout (float | tuple): Request timeout in seconds

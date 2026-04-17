@@ -6,12 +6,13 @@ import asyncio
 import json as json_module
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from typing import Any, Literal
+from typing import Any
 from urllib.parse import urljoin
 
 import aiohttp
 from fake_useragent import UserAgent
 
+from gameinsights._types import HttpMethod
 from gameinsights.sources.base import (
     SYNTHETIC_ERROR_CODE,
     ErrorResult,
@@ -93,7 +94,7 @@ class AsyncBaseSource(ABC):
         params: dict[str, Any] | None = None,
         json: dict[str, Any] | None = None,
         data: str | bytes | None = None,
-        method: Literal["GET", "POST"] = "GET",
+        method: HttpMethod = "GET",
         retries: int = 3,
         backoff_factor: float = 0.5,
         timeout: float | tuple[float, float] = (30, 60),
@@ -281,7 +282,7 @@ class AsyncBaseSource(ABC):
         appid: str,
         verbose: bool = True,
         selected_labels: list[str] | None = None,
-    ) -> SuccessResult | ErrorResult:
+    ) -> SuccessResult[dict[str, Any]] | ErrorResult:
         pass
 
     @abstractmethod

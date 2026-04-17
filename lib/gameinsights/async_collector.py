@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import asyncio
-from typing import TYPE_CHECKING, Any, Literal, NamedTuple
+from typing import TYPE_CHECKING, Any, NamedTuple
 
 import aiohttp
 
@@ -10,6 +10,7 @@ from gameinsights._collector_utils import (
     post_process_raw_data,
     raise_for_fetch_failure,
 )
+from gameinsights._types import ReturnFormat, Scope
 from gameinsights.async_.base import AsyncBaseSource
 from gameinsights.async_.howlongtobeat import AsyncHowLongToBeat
 from gameinsights.async_.protondb import AsyncProtonDB
@@ -264,7 +265,7 @@ class AsyncCollector:
         self,
         source: AsyncBaseSource,
         identifier: str,
-        scope: Literal["id", "name"],
+        scope: Scope,
         verbose: bool,
     ) -> SourceResult:
         source_name = source.__class__.__name__
@@ -378,7 +379,7 @@ class AsyncCollector:
         verbose: bool = True,
         include_failures: bool = False,
         *,
-        return_as: Literal["list", "dataframe"] = "list",
+        return_as: ReturnFormat = "list",
     ) -> (
         list[dict[str, Any]]
         | "pd.DataFrame"
@@ -486,7 +487,7 @@ class AsyncCollector:
         verbose: bool = True,
         review_only: bool = True,
         *,
-        return_as: Literal["list", "dataframe"] = "list",
+        return_as: ReturnFormat = "list",
     ) -> list[dict[str, Any]] | "pd.DataFrame":
         """Fetch all reviews for a game."""
         await self._ensure_initialized()
@@ -530,7 +531,7 @@ class AsyncCollector:
         self,
         steamids: str | list[str],
         include_free_games: bool = True,
-        return_as: Literal["list", "dataframe"] = "dataframe",
+        return_as: ReturnFormat = "dataframe",
         verbose: bool = True,
     ) -> list[dict[str, Any]] | "pd.DataFrame":
         """Fetch user data for one or more Steam IDs."""

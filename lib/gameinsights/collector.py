@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import time
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, Literal, NamedTuple
+from typing import TYPE_CHECKING, Any, NamedTuple
 
 import requests
 from requests.adapters import HTTPAdapter
@@ -13,6 +13,7 @@ from gameinsights._collector_utils import (
     post_process_raw_data,
     raise_for_fetch_failure,
 )
+from gameinsights._types import ReturnFormat, Scope
 from gameinsights.exceptions import (
     DependencyNotInstalledError,
     GameInsightsError,
@@ -322,7 +323,7 @@ class Collector:
         self,
         steamids: str | list[str],
         include_free_games: bool = True,
-        return_as: Literal["list", "dataframe"] = "dataframe",
+        return_as: ReturnFormat = "dataframe",
         verbose: bool = True,
     ) -> list[dict[str, Any]] | pd.DataFrame:
         """Fetch user data from provided steamids.
@@ -471,7 +472,7 @@ class Collector:
         verbose: bool = True,
         include_failures: bool = False,
         *,
-        return_as: Literal["list", "dataframe"] = "list",
+        return_as: ReturnFormat = "list",
     ) -> (
         list[dict[str, Any]]
         | pd.DataFrame
@@ -606,7 +607,7 @@ class Collector:
         verbose: bool = True,
         review_only: bool = True,
         *,
-        return_as: Literal["list", "dataframe"] = "list",
+        return_as: ReturnFormat = "list",
     ) -> list[dict[str, Any]] | pd.DataFrame:
         """Fetch game reviews from Steam.
 
@@ -727,7 +728,7 @@ class Collector:
         self,
         source: sources.BaseSource,
         identifier: str,
-        scope: Literal["id", "name"],
+        scope: Scope,
         verbose: bool,
     ) -> SourceResult:
         source_name = source.__class__.__name__

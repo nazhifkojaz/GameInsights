@@ -5,6 +5,8 @@ from typing import Any, ClassVar
 from pydantic import BaseModel, Field, field_validator, model_validator
 from typing_extensions import Self
 
+from gameinsights.model.types import AchievementEntry, ContentRating, MonthlyActivePlayer
+
 
 class GameDataModel(BaseModel):
     """Complete game data model with Python 3.10+ type hints and Pydantic v2 validation.
@@ -52,7 +54,7 @@ class GameDataModel(BaseModel):
     ccu: int | None = Field(default=None)
     active_player_24h: int | None = Field(default=None)
     peak_active_player_all_time: int | None = Field(default=None)
-    monthly_active_player: list[dict[str, Any]] = Field(default_factory=list)
+    monthly_active_player: list[MonthlyActivePlayer] = Field(default_factory=list)
     review_score: int | None = Field(default=None)
     review_score_desc: str | None = Field(default=None)
     total_positive: int | None = Field(default=None)
@@ -60,7 +62,7 @@ class GameDataModel(BaseModel):
     total_reviews: int | None = Field(default=None)
     achievements_count: int | None = Field(default=None)
     achievements_percentage_average: float | None = Field(default=None)
-    achievements_list: list[dict[str, Any]] = Field(default_factory=list)
+    achievements_list: list[AchievementEntry] = Field(default_factory=list)
     comp_main: int | None = Field(default=None)
     comp_plus: int | None = Field(default=None)
     comp_100: int | None = Field(default=None)
@@ -84,7 +86,7 @@ class GameDataModel(BaseModel):
     categories: list[str] = Field(default_factory=list)
     genres: list[str] = Field(default_factory=list)
     tags: list[str] = Field(default_factory=list)
-    content_rating: list[dict[str, Any]] = Field(default_factory=list)
+    content_rating: list[ContentRating] = Field(default_factory=list)
 
     # ProtonDB fields (Linux/Steam Deck compatibility)
     protondb_tier: str | None = Field(default=None)
