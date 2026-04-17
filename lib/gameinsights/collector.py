@@ -1,17 +1,20 @@
 from __future__ import annotations
 
 import time
-from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, NamedTuple
+from typing import TYPE_CHECKING, Any
 
 import requests
 from requests.adapters import HTTPAdapter
 
-from gameinsights import sources
 from gameinsights._collector_utils import (
+    FetchResult,
+    _SourceConfig,
     classify_source_error,
+    normalize_active_player_rows,
     post_process_raw_data,
     raise_for_fetch_failure,
+    record_fetch_exception,
+    record_fetch_outcome,
 )
 from gameinsights._types import ReturnFormat, Scope
 from gameinsights.exceptions import (
@@ -20,7 +23,17 @@ from gameinsights.exceptions import (
     InvalidRequestError,
 )
 from gameinsights.model.game_data import GameDataModel
-from gameinsights.sources.base import SourceResult
+from gameinsights.sources import (
+    HowLongToBeat,
+    ProtonDB,
+    SteamAchievements,
+    SteamCharts,
+    SteamReview,
+    SteamSpy,
+    SteamStore,
+    SteamUser,
+)
+from gameinsights.sources.base import BaseSource, SourceResult
 from gameinsights.utils import LoggerWrapper, metrics
 from gameinsights.utils.import_optional import import_pandas
 from gameinsights.utils.ratelimit import logged_rate_limited
@@ -28,28 +41,7 @@ from gameinsights.utils.ratelimit import logged_rate_limited
 if TYPE_CHECKING:
     import pandas as pd
 
-
-@dataclass
-class FetchResult:
-    """Result of fetching data for a single game/user.
-
-    Attributes:
-        identifier: The appid or steamid that was fetched
-        success: Whether the fetch was successful
-        data: The fetched data (if successful)
-        error: Error message (if failed)
-    """
-
-    identifier: str
-    success: bool
-    data: dict[str, Any] | None = None
-    error: str | None = None
-
-
-class SourceConfig(NamedTuple):
-    source: sources.BaseSource
-    fields: list[str]
-    is_primary: bool = False
+SourceConfig = _SourceConfig[BaseSource]
 
 
 class Collector:
@@ -134,29 +126,29 @@ class Collector:
 
     def _init_sources(self) -> None:
         """Initialize the sources with the current settings."""
-        self.steamreview = sources.SteamReview(session=self._session)
-        self.steamstore = sources.SteamStore(
+        self.steamreview = SteamReview(session=self._session)
+        self.steamstore = SteamStore(
             region=self.region,
             language=self.language,
             api_key=self.steam_api_key,
             session=self._session,
         )
-        self.steamspy = sources.SteamSpy(session=self._session)
-        self.steamcharts = sources.SteamCharts(session=self._session)
-        self.howlongtobeat = sources.HowLongToBeat(session=self._session)
-        self.steamachievements = sources.SteamAchievements(
+        self.steamspy = SteamSpy(session=self._session)
+        self.steamcharts = SteamCharts(session=self._session)
+        self.howlongtobeat = HowLongToBeat(session=self._session)
+        self.steamachievements = SteamAchievements(
             api_key=self.steam_api_key,
             session=self._session,
         )
-        self.steamuser = sources.SteamUser(
+        self.steamuser = SteamUser(
             api_key=self.steam_api_key,
             session=self._session,
         )
-        self.protondb = sources.ProtonDB(session=self._session)
+        self.protondb = ProtonDB(session=self._session)
 
     def _init_sources_config(self) -> None:
         """Initialize sources config."""
-        self._id_based_sources = [
+        self._id_based_sources: list[SourceConfig] = [
             SourceConfig(
                 self.steamstore,
                 [
@@ -218,7 +210,7 @@ class Collector:
             ),
         ]
 
-        self._name_based_sources = [
+        self._name_based_sources: list[SourceConfig] = [
             SourceConfig(
                 self.howlongtobeat,
                 [
@@ -561,29 +553,13 @@ class Collector:
                 all_results.append(FetchResult(identifier=str(appid), success=False, error=str(e)))
             all_data.append(game_record)
 
-        # Normalize records - fill missing values consistently
-        sorted_months = sorted(all_months)
-        fixed_columns = ["steam_appid", "name", "peak_active_player_all_time"]
-        # Only numeric columns should get fill_na_as; string columns stay as None/empty
-        numeric_columns = ["peak_active_player_all_time"] + sorted_months
-
-        normalized_data = []
-        for record in all_data:
-            normalized_record: dict[str, str | int | None] = {}
-            for col in fixed_columns + sorted_months:
-                value = record.get(col)
-                if col in numeric_columns:
-                    # Fill None or missing keys with fill_na_as for numeric columns
-                    normalized_record[col] = value if value is not None else fill_na_as
-                else:
-                    # String columns: keep as None or original value
-                    normalized_record[col] = value
-            normalized_data.append(normalized_record)
+        normalized_data, sorted_months, fixed_columns, numeric_columns = (
+            normalize_active_player_rows(all_data, all_months, fill_na_as)
+        )
 
         if return_as == "dataframe":
             pd = self._require_pandas()
             df = pd.DataFrame(normalized_data, columns=fixed_columns + sorted_months)
-            # Only fillna for numeric columns, not string columns
             df[numeric_columns] = df[numeric_columns].fillna(fill_na_as)
             return (df, all_results) if include_failures else df
 
@@ -707,7 +683,7 @@ class Collector:
 
     def _fetch_with_observability(
         self,
-        source: sources.BaseSource,
+        source: BaseSource,
         identifier: str,
         scope: Scope,
         verbose: bool,
@@ -728,31 +704,17 @@ class Collector:
             ) as timing:
                 result = source.fetch(identifier, verbose=verbose)
         except Exception as exc:
-            metrics.counter("source_fetch_exception_total", source=source_name, scope=scope)
-            source.logger.log_event(
-                "source_fetch_exception",
-                level="error",
-                verbose=True,
-                scope=scope,
-                identifier=identifier,
-                error=str(exc),
-            )
+            record_fetch_exception(source_name, scope, source.logger, identifier, str(exc))
             raise
 
-        duration_ms = round(timing.duration * 1000, 2)
-        metrics.counter("source_fetch_total", source=source_name, scope=scope)
-        if result["success"]:
-            metrics.counter("source_fetch_success_total", source=source_name, scope=scope)
-        else:
-            metrics.counter("source_fetch_error_total", source=source_name, scope=scope)
-
-        source.logger.log_event(
-            "source_fetch_complete",
-            verbose=verbose,
-            scope=scope,
-            identifier=identifier,
-            success=result["success"],
-            duration_ms=duration_ms,
+        record_fetch_outcome(
+            source_name,
+            scope,
+            source.logger,
+            identifier,
+            verbose,
+            timing,
+            result["success"],
         )
 
         return result

@@ -10,7 +10,7 @@ from gameinsights import (
     SourceUnavailableError,
 )
 from gameinsights.sources import HowLongToBeat
-from gameinsights.sources.howlongtobeat import _SearchAuth
+from gameinsights.sources._schemas import _SearchAuth
 
 
 class TestCollectorErrorClassification:

@@ -4,7 +4,8 @@ from __future__ import annotations
 
 from typing import Any, Literal
 
-from gameinsights.collector import FetchResult, SourceConfig
+from gameinsights._collector_utils import FetchResult
+from gameinsights.collector import SourceConfig
 
 
 class DummySource:

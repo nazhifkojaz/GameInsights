@@ -1,14 +1,19 @@
 from __future__ import annotations
 
 import asyncio
-from typing import TYPE_CHECKING, Any, NamedTuple
+from typing import TYPE_CHECKING, Any
 
 import aiohttp
 
 from gameinsights._collector_utils import (
+    FetchResult,
+    _SourceConfig,
     classify_source_error,
+    normalize_active_player_rows,
     post_process_raw_data,
     raise_for_fetch_failure,
+    record_fetch_exception,
+    record_fetch_outcome,
 )
 from gameinsights._types import ReturnFormat, Scope
 from gameinsights.async_.base import AsyncBaseSource
@@ -20,7 +25,6 @@ from gameinsights.async_.steamreview import AsyncSteamReview
 from gameinsights.async_.steamspy import AsyncSteamSpy
 from gameinsights.async_.steamstore import AsyncSteamStore
 from gameinsights.async_.steamuser import AsyncSteamUser
-from gameinsights.collector import FetchResult
 from gameinsights.exceptions import (
     DependencyNotInstalledError,
     GameInsightsError,
@@ -35,11 +39,7 @@ from gameinsights.utils.import_optional import import_pandas
 if TYPE_CHECKING:
     import pandas as pd
 
-
-class AsyncSourceConfig(NamedTuple):
-    source: AsyncBaseSource
-    fields: list[str]
-    is_primary: bool = False
+AsyncSourceConfig = _SourceConfig[AsyncBaseSource]
 
 
 class AsyncCollector:
@@ -284,31 +284,17 @@ class AsyncCollector:
             ) as timing:
                 result = await source.fetch(identifier, verbose=verbose)
         except Exception as exc:
-            metrics.counter("source_fetch_exception_total", source=source_name, scope=scope)
-            source.logger.log_event(
-                "source_fetch_exception",
-                level="error",
-                verbose=True,
-                scope=scope,
-                identifier=identifier,
-                error=str(exc),
-            )
+            record_fetch_exception(source_name, scope, source.logger, identifier, str(exc))
             raise
 
-        duration_ms = round(timing.duration * 1000, 2)
-        metrics.counter("source_fetch_total", source=source_name, scope=scope)
-        if result["success"]:
-            metrics.counter("source_fetch_success_total", source=source_name, scope=scope)
-        else:
-            metrics.counter("source_fetch_error_total", source=source_name, scope=scope)
-
-        source.logger.log_event(
-            "source_fetch_complete",
-            verbose=verbose,
-            scope=scope,
-            identifier=identifier,
-            success=result["success"],
-            duration_ms=duration_ms,
+        record_fetch_outcome(
+            source_name,
+            scope,
+            source.logger,
+            identifier,
+            verbose,
+            timing,
+            result["success"],
         )
 
         return result
@@ -451,20 +437,9 @@ class AsyncCollector:
                 all_results.append(FetchResult(identifier=str(appid), success=False, error=str(e)))
             all_data.append(game_record)
 
-        sorted_months = sorted(all_months)
-        fixed_columns = ["steam_appid", "name", "peak_active_player_all_time"]
-        numeric_columns = ["peak_active_player_all_time"] + sorted_months
-
-        normalized_data: list[dict[str, Any]] = []
-        for record in all_data:
-            normalized_record: dict[str, Any] = {}
-            for col in fixed_columns + sorted_months:
-                value = record.get(col)
-                if col in numeric_columns:
-                    normalized_record[col] = value if value is not None else fill_na_as
-                else:
-                    normalized_record[col] = value
-            normalized_data.append(normalized_record)
+        normalized_data, sorted_months, fixed_columns, numeric_columns = (
+            normalize_active_player_rows(all_data, all_months, fill_na_as)
+        )
 
         if return_as == "dataframe":
             pd = self._require_pandas()

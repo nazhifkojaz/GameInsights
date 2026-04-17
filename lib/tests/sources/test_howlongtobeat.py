@@ -1,6 +1,7 @@
 import pytest
 
-from gameinsights.sources.howlongtobeat import HowLongToBeat, _SearchAuth
+from gameinsights.sources._schemas import _SearchAuth
+from gameinsights.sources.howlongtobeat import HowLongToBeat
 
 
 class TestHowLongToBeat:

@@ -187,7 +187,7 @@ def collector_with_mocks(mock_request_response, monkeypatch, request):
         SteamSpy,
         SteamStore,
     )
-    from gameinsights.sources.howlongtobeat import _SearchAuth
+    from gameinsights.sources._schemas import _SearchAuth
 
     # Mock the HowLongToBeat auth method
     def mock_get_auth(*args, **kwargs):
@@ -272,7 +272,7 @@ def collector_with_one_failed_source(mock_request_response, monkeypatch, request
         SteamSpy,
         SteamStore,
     )
-    from gameinsights.sources.howlongtobeat import _SearchAuth
+    from gameinsights.sources._schemas import _SearchAuth
 
     # Mock the HowLongToBeat auth method
     def mock_get_auth(*args, **kwargs):
@@ -403,7 +403,7 @@ def assert_fetch_result(
     Raises:
         AssertionError: If any assertion fails
     """
-    from gameinsights.collector import FetchResult
+    from gameinsights._collector_utils import FetchResult
 
     assert isinstance(result, FetchResult), f"Expected FetchResult, got {type(result)}"
     assert (

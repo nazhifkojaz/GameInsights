@@ -3,7 +3,7 @@
 import pytest
 
 from gameinsights import Collector
-from gameinsights.sources.howlongtobeat import _SearchAuth
+from gameinsights.sources._schemas import _SearchAuth
 
 
 @pytest.fixture(autouse=True)

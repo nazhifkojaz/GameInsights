@@ -5,7 +5,7 @@ from unittest.mock import patch
 import pytest
 
 from gameinsights import Collector, GameNotFoundError
-from gameinsights.sources.howlongtobeat import _SearchAuth
+from gameinsights.sources._schemas import _SearchAuth
 
 
 class TestMultiAppidScenarios:
