@@ -176,6 +176,7 @@ class SteamAchievements(BaseSource):
         """
         transformed = []
         total = 0.0
+        dropped = 0
 
         for entry in achievements:
             try:
@@ -183,7 +184,15 @@ class SteamAchievements(BaseSource):
                 transformed.append({"name": entry["name"], "percent": percentage})
                 total += percentage
             except (KeyError, ValueError):
+                dropped += 1
                 continue
+
+        if dropped:
+            self.logger.log(
+                f"Dropped {dropped} achievement entries due to missing/invalid fields",
+                level="debug",
+                verbose=True,
+            )
 
         count = len(transformed)
         average = round(total / count, 2) if count > 0 else 0.0

@@ -187,8 +187,12 @@ class AsyncHowLongToBeat(AsyncBaseSource):
                 game_list = game_data.get("game")
                 if isinstance(game_list, list) and len(game_list) > 0:
                     return cast(dict[str, Any], game_list[0])
-            except (json.JSONDecodeError, KeyError, IndexError):
-                pass
+            except (json.JSONDecodeError, KeyError, IndexError) as exc:
+                self.logger.log(
+                    f"HLTB __NEXT_DATA__ parse failed for game {game_id}: {exc}",
+                    level="debug",
+                    verbose=True,
+                )
 
         return None
 

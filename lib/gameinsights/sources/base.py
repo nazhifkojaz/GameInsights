@@ -301,9 +301,7 @@ class BaseSource(ABC):
             if isinstance(data, dict):
                 return data
             return None
-        except Exception:
-            # Don't log here - let the caller build the error result
-            # This allows custom error messages per source
+        except ValueError:
             return None
 
     def _apply_label_filter(

@@ -224,7 +224,7 @@ class AsyncBaseSource(ABC):
             if isinstance(data, dict):
                 return data
             return None
-        except Exception:
+        except (ValueError, aiohttp.ContentTypeError):
             return None
 
     def _filter_valid_labels(

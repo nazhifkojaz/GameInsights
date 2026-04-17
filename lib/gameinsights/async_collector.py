@@ -360,13 +360,6 @@ class AsyncCollector:
                     f"Error fetching data for game {appid}: {e}", level="error", verbose=True
                 )
                 all_results.append(FetchResult(identifier=str(appid), success=False, error=str(e)))
-            except Exception as e:
-                self.logger.log(
-                    f"Error fetching data for game {appid} with {e} error..",
-                    level="error",
-                    verbose=True,
-                )
-                all_results.append(FetchResult(identifier=str(appid), success=False, error=str(e)))
 
         if include_failures:
             return result, all_results
@@ -502,24 +495,17 @@ class AsyncCollector:
         )
 
         records: list[dict[str, Any]] = []
-        try:
-            reviews_data = await self.steamreview.fetch(
-                steam_appid=steam_appid,
-                verbose=verbose,
-                filter="recent",
-                language="all",
-                review_type="all",
-                purchase_type="all",
-                mode="review",
-            )
-            if reviews_data["success"]:
-                records = (
-                    reviews_data["data"]["reviews"] if review_only else [reviews_data["data"]]
-                )
-        except Exception as e:
-            self.logger.log(
-                f"Error fetching reviews for appid {steam_appid}: {e}", level="error", verbose=True
-            )
+        reviews_data = await self.steamreview.fetch(
+            steam_appid=steam_appid,
+            verbose=verbose,
+            filter="recent",
+            language="all",
+            review_type="all",
+            purchase_type="all",
+            mode="review",
+        )
+        if reviews_data["success"]:
+            records = reviews_data["data"]["reviews"] if review_only else [reviews_data["data"]]
 
         if return_as == "dataframe":
             pd = self._require_pandas()
@@ -548,18 +534,11 @@ class AsyncCollector:
                 level="info",
                 verbose=verbose,
             )
-            try:
-                fetch_result = await self.steamuser.fetch(
-                    steamid=steamid, include_free_games=include_free_games, verbose=verbose
-                )
-                user_data = (
-                    fetch_result["data"] if fetch_result["success"] else {"steamid": steamid}
-                )
-                results.append(user_data)
-            except Exception as e:
-                self.logger.log(
-                    f"Error fetching data for steamid {steamid}: {e}", level="error", verbose=True
-                )
+            fetch_result = await self.steamuser.fetch(
+                steamid=steamid, include_free_games=include_free_games, verbose=verbose
+            )
+            user_data = fetch_result["data"] if fetch_result["success"] else {"steamid": steamid}
+            results.append(user_data)
 
         if return_as == "dataframe":
             pd = self._require_pandas()

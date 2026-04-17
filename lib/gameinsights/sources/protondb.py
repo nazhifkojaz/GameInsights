@@ -86,14 +86,13 @@ class ProtonDB(BaseSource):
                 f"Failed to fetch data with status code: {response.status_code}", verbose=verbose
             )
 
-        try:
-            summary = response.json()
-        except Exception:
+        data = self._fetch_and_parse_json(response)
+        if data is None:
             return self._build_error_result(
                 f"Failed to parse ProtonDB response for game {steam_appid}.", verbose=verbose
             )
 
-        data_packed = self._transform_data(summary)
+        data_packed = self._transform_data(data)
         data_packed["steam_appid"] = steam_appid
 
         # Apply label filtering
