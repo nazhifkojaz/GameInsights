@@ -8,9 +8,7 @@ from app.config import Settings
 class CollectorPool:
     def __init__(self, settings: Settings) -> None:
         self._settings = settings
-        self._queue: asyncio.Queue[Collector] = asyncio.Queue(
-            maxsize=settings.collector_pool_size
-        )
+        self._queue: asyncio.Queue[Collector] = asyncio.Queue(maxsize=settings.collector_pool_size)
         self._collectors: list[Collector] = []
         self._closed = False
 
