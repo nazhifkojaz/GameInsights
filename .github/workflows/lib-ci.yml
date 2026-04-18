@@ -3,9 +3,9 @@ name: CI (Library)
 on:
   push:
     branches: [main]
-    paths: ["lib/**", "pyproject.toml", ".github/workflows/ci.yml"]
+    paths: ["lib/**", "pyproject.toml", ".github/workflows/lib-ci.yml"]
   pull_request:
-    paths: ["lib/**", "pyproject.toml", ".github/workflows/ci.yml"]
+    paths: ["lib/**", "pyproject.toml", ".github/workflows/lib-ci.yml"]
 
 jobs:
   quality-checks:
