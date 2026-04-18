@@ -1130,6 +1130,7 @@ dev = [
     { name = "pytest-cov" },
     { name = "ruff" },
     { name = "types-beautifulsoup4" },
+    { name = "types-ratelimit" },
     { name = "types-requests" },
 ]
 notebooks = [
@@ -1165,6 +1166,7 @@ dev = [
     { name = "pytest-cov", specifier = ">=6.2.1" },
     { name = "ruff", specifier = ">=0.11.13" },
     { name = "types-beautifulsoup4", specifier = ">=4.12" },
+    { name = "types-ratelimit", specifier = ">=2.2" },
     { name = "types-requests", specifier = ">=2.32" },
 ]
 notebooks = [
@@ -3390,6 +3392,15 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/16/59/914d00107c770e49fa57d4c4572e0371bbce14321385fd2ea3e06691b62d/types_html5lib-1.1.11.20260408.tar.gz", hash = "sha256:8a281aa367bc77dbc758358cd9bef79530f2d154eeed9b33705bb035a0dab9e4", size = 18316, upload-time = "2026-04-08T04:35:49.581Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/61/19/12d95e98e42e120522665ec6850b38df8d2c1cca94e21c4d7f8578acb64e/types_html5lib-1.1.11.20260408-py3-none-any.whl", hash = "sha256:d18dc4b90d6d6745585790b920db13ede43e1f8ff6ee1ac0ceb0dec4223a06fa", size = 24313, upload-time = "2026-04-08T04:35:48.679Z" },
+]
+
+[[package]]
+name = "types-ratelimit"
+version = "2.2.0.20260408"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/31/34/a5521aa05a0aa6548b2d97dcaa78d7918f7243b7dcec532cf83bb2c31ea5/types_ratelimit-2.2.0.20260408.tar.gz", hash = "sha256:34ff18a85147be38377fd75520185107afc8a9b1018801b341ba19d27609cf49", size = 7153, upload-time = "2026-04-08T04:27:34.094Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/26/19/bfcfa8092bc954a2165a7e1f4e52fcab5e241361871edbcaa50b0152edcd/types_ratelimit-2.2.0.20260408-py3-none-any.whl", hash = "sha256:cfb2e633c231f734bc721159c82dc2400b2b9bd55d249a76e34b77056b7f8f26", size = 8042, upload-time = "2026-04-08T04:27:33.359Z" },
 ]
 
 [[package]]
