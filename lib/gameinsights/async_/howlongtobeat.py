@@ -68,7 +68,7 @@ class AsyncHowLongToBeat(AsyncBaseSource):
             return self._build_error_result("No game ID in search result.", verbose=verbose)
 
         # Step 3: Fetch full game data from the game page
-        full_data = await self._fetch_game_page(game_id)
+        full_data = await self._fetch_game_page(game_id, verbose=verbose)
         if not full_data:
             full_data = first_result
 
@@ -170,7 +170,7 @@ class AsyncHowLongToBeat(AsyncBaseSource):
             return None
         return response
 
-    async def _fetch_game_page(self, game_id: int) -> dict[str, Any] | None:
+    async def _fetch_game_page(self, game_id: int, verbose: bool = True) -> dict[str, Any] | None:
         headers = {"Referer": self.REFERER_HEADER}
         response = await self._make_request(url=f"{self.BASE_URL}game/{game_id}", headers=headers)
 
@@ -180,7 +180,7 @@ class AsyncHowLongToBeat(AsyncBaseSource):
         return extract_hltb_game_data(
             response.text,
             game_id,
-            log_fn=lambda msg: self.logger.log(msg, level="debug", verbose=True),
+            log_fn=lambda msg: self.logger.log(msg, level="debug", verbose=verbose),
         )
 
     @staticmethod

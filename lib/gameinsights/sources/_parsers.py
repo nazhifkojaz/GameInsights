@@ -174,9 +174,16 @@ def transform_steamcharts(
             continue
         month, avg_players, gain, percentage_gain, peak_players = cols
 
+        try:
+            parsed_month = datetime.strptime(month, "%B %Y").strftime("%Y-%m")
+        except ValueError:
+            if log_fn is not None:
+                log_fn(f"Skipping row with unparseable month: {month!r}")
+            continue
+
         monthly_active_player.append(
             {
-                "month": datetime.strptime(month, "%B %Y").strftime("%Y-%m"),
+                "month": parsed_month,
                 "average_players": float(avg_players.replace(",", "")),
                 "gain": float(gain.replace(",", "")) if gain not in ("-", "") else None,
                 "percentage_gain": (
@@ -297,7 +304,7 @@ def calculate_average_percentage(
             percentage = float(entry["percent"])
             transformed.append({"name": entry["name"], "percent": percentage})
             total += percentage
-        except (KeyError, ValueError):
+        except (KeyError, ValueError, TypeError):
             dropped += 1
             continue
 
@@ -551,7 +558,7 @@ def extract_hltb_game_data(
             game_list = game_data.get("game")
             if isinstance(game_list, list) and len(game_list) > 0:
                 return cast(dict[str, Any], game_list[0])
-        except (json.JSONDecodeError, KeyError, IndexError) as exc:
+        except (json.JSONDecodeError, KeyError, IndexError, AttributeError) as exc:
             if log_fn is not None:
                 log_fn(f"HLTB __NEXT_DATA__ parse failed for game {game_id}: {exc}")
 

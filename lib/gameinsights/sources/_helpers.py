@@ -37,7 +37,6 @@ def prepare_identifier(
 
 def fetch_and_parse_json(
     response: Any,
-    verbose: bool = True,
     extra_json_exceptions: tuple[type[Exception], ...] = (),
 ) -> dict[str, Any] | None:
     if response.status_code != 200:

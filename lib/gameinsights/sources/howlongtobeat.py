@@ -108,7 +108,7 @@ class HowLongToBeat(BaseSource):
             return self._build_error_result("No game ID in search result.", verbose=verbose)
 
         # Step 4: Fetch full game data from the game page
-        full_data = self._fetch_game_page(game_id)
+        full_data = self._fetch_game_page(game_id, verbose=verbose)
         if not full_data:
             # Fall back to search result data if page fetch fails
             full_data = first_result
@@ -236,11 +236,12 @@ class HowLongToBeat(BaseSource):
             return None
         return response
 
-    def _fetch_game_page(self, game_id: int) -> dict[str, Any] | None:
+    def _fetch_game_page(self, game_id: int, verbose: bool = True) -> dict[str, Any] | None:
         """Fetch full game data from the game page.
 
         Args:
             game_id: The HowLongToBeat game ID.
+            verbose: If True, will log debug messages.
 
         Returns:
             The game data dict, or None if fetching failed.
@@ -257,7 +258,7 @@ class HowLongToBeat(BaseSource):
         return extract_hltb_game_data(
             response.text,
             game_id,
-            log_fn=lambda msg: self.logger.log(msg, level="debug", verbose=True),
+            log_fn=lambda msg: self.logger.log(msg, level="debug", verbose=verbose),
         )
 
     @staticmethod

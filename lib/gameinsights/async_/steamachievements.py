@@ -69,7 +69,9 @@ class AsyncSteamAchievements(AsyncBaseSource):
 
             percentage_data = pct_response.json()
             schema_data: dict[str, Any] = schema_response.json()
-            data_packed = self._transform_data(data=percentage_data, schema_data=schema_data)
+            data_packed = self._transform_data(
+                data=percentage_data, schema_data=schema_data, verbose=verbose
+            )
         else:
             pct_response = await self._make_request(params=params)
             if pct_response.status_code != 200:
@@ -78,17 +80,21 @@ class AsyncSteamAchievements(AsyncBaseSource):
                     verbose=verbose,
                 )
             percentage_data = pct_response.json()
-            data_packed = self._transform_data(data=percentage_data)
+            data_packed = self._transform_data(data=percentage_data, verbose=verbose)
 
         return SuccessResult(
             success=True, data=self._apply_label_filter(data_packed, selected_labels)
         )
 
     def _transform_data(
-        self, data: dict[str, Any], schema_data: dict[str, Any] | None = None
+        self,
+        data: dict[str, Any],
+        schema_data: dict[str, Any] | None = None,
+        *,
+        verbose: bool = True,
     ) -> dict[str, Any]:
         return transform_steamachievements(
             data,
             schema_data=schema_data,
-            log_fn=lambda msg: self.logger.log(msg, level="debug", verbose=True),
+            log_fn=lambda msg: self.logger.log(msg, level="debug", verbose=verbose),
         )

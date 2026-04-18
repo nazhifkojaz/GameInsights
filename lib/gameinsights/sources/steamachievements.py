@@ -92,10 +92,10 @@ class SteamAchievements(BaseSource):
             if not schema_data["success"]:
                 return self._build_error_result(schema_data["error"], verbose=False)
             data_packed = self._transform_data(
-                data=percentage_data, schema_data=schema_data["data"]
+                data=percentage_data, schema_data=schema_data["data"], verbose=verbose
             )
         else:
-            data_packed = self._transform_data(data=percentage_data)
+            data_packed = self._transform_data(data=percentage_data, verbose=verbose)
 
         return SuccessResult(
             success=True, data=self._apply_label_filter(data_packed, selected_labels)
@@ -124,10 +124,14 @@ class SteamAchievements(BaseSource):
         return SuccessResult(success=True, data=data)
 
     def _transform_data(
-        self, data: dict[str, Any], schema_data: dict[str, Any] | None = None
+        self,
+        data: dict[str, Any],
+        schema_data: dict[str, Any] | None = None,
+        *,
+        verbose: bool = True,
     ) -> dict[str, Any]:
         return transform_steamachievements(
             data,
             schema_data=schema_data,
-            log_fn=lambda msg: self.logger.log(msg, level="debug", verbose=True),
+            log_fn=lambda msg: self.logger.log(msg, level="debug", verbose=verbose),
         )

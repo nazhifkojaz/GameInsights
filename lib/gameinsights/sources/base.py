@@ -110,7 +110,7 @@ class BaseSource(ABC):
     @abstractmethod
     def fetch(
         self, appid: str, verbose: bool = True, selected_labels: list[str] | None = None
-    ) -> SuccessResult[dict[str, Any]] | ErrorResult:
+    ) -> SourceResult:
         """Abstract method to fetch data from the source.
 
         Args:
@@ -251,9 +251,8 @@ class BaseSource(ABC):
     def _fetch_and_parse_json(
         self,
         response: requests.Response,
-        verbose: bool = True,
     ) -> dict[str, Any] | None:
-        return _fetch_and_parse_json(response, verbose)
+        return _fetch_and_parse_json(response)
 
     def _apply_label_filter(
         self,

@@ -75,8 +75,8 @@ class SteamCharts(BaseSource):
             return self._build_error_result(
                 "Failed to parse data, expecting atleast 3 'app-stat' divs.", verbose=verbose
             )
-        # Note: Missing span elements are handled gracefully by safe_span_text()
-        # which returns None instead of raising AttributeError
+        # Note: Missing span elements are handled gracefully by safe_span_text
+        # in the shared parser (returns None instead of raising)
 
         active_player_data_table = soup.find("table", class_="common-table")
         if not isinstance(active_player_data_table, Tag):
@@ -104,7 +104,8 @@ class SteamCharts(BaseSource):
                     "game_name": game_name_tag,
                     "peak_data": peak_data,
                     "player_data_rows": player_data_rows,
-                }
+                },
+                verbose=verbose,
             ),
         }
 
@@ -116,8 +117,8 @@ class SteamCharts(BaseSource):
 
         return SuccessResult(success=True, data=data_packed)
 
-    def _transform_data(self, data: dict[str, Any]) -> dict[str, Any]:
+    def _transform_data(self, data: dict[str, Any], *, verbose: bool = True) -> dict[str, Any]:
         return transform_steamcharts(
             data,
-            log_fn=lambda msg: self.logger.log(msg, level="warning", verbose=True),
+            log_fn=lambda msg: self.logger.log(msg, level="warning", verbose=verbose),
         )

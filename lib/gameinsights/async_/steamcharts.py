@@ -79,7 +79,8 @@ class AsyncSteamCharts(AsyncBaseSource):
                     "game_name": game_name_tag,
                     "peak_data": peak_data,
                     "player_data_rows": player_data_rows,
-                }
+                },
+                verbose=verbose,
             ),
         }
 
@@ -91,8 +92,8 @@ class AsyncSteamCharts(AsyncBaseSource):
 
         return SuccessResult(success=True, data=data_packed)
 
-    def _transform_data(self, data: dict[str, Any]) -> dict[str, Any]:
+    def _transform_data(self, data: dict[str, Any], *, verbose: bool = True) -> dict[str, Any]:
         return transform_steamcharts(
             data,
-            log_fn=lambda msg: self.logger.log(msg, level="warning", verbose=True),
+            log_fn=lambda msg: self.logger.log(msg, level="warning", verbose=verbose),
         )

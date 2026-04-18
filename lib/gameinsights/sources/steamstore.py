@@ -85,7 +85,7 @@ class SteamStore(BaseSource):
         params = {"appids": steam_appid, "cc": self.region, "l": self.language}
         response = self._make_request(params=params)
 
-        data = self._fetch_and_parse_json(response, verbose)
+        data = self._fetch_and_parse_json(response)
         if data is None:
             return self._build_error_result(
                 f"Failed to connect to API. Status code: {response.status_code}.",

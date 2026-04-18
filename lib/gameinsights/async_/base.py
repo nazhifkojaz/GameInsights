@@ -31,7 +31,7 @@ from gameinsights.sources._helpers import (
 from gameinsights.sources.base import (
     SYNTHETIC_ERROR_CODE,
     ErrorResult,
-    SuccessResult,
+    SourceResult,
 )
 from gameinsights.utils import LoggerWrapper
 
@@ -223,11 +223,8 @@ class AsyncBaseSource(ABC):
     def _fetch_and_parse_json(
         self,
         response: _AsyncResponse,
-        verbose: bool = True,
     ) -> dict[str, Any] | None:
-        return _fetch_and_parse_json(
-            response, verbose, extra_json_exceptions=(aiohttp.ContentTypeError,)
-        )
+        return _fetch_and_parse_json(response, extra_json_exceptions=(aiohttp.ContentTypeError,))
 
     def _filter_valid_labels(
         self,
@@ -273,7 +270,7 @@ class AsyncBaseSource(ABC):
         appid: str,
         verbose: bool = True,
         selected_labels: list[str] | None = None,
-    ) -> SuccessResult[dict[str, Any]] | ErrorResult:
+    ) -> SourceResult:
         pass
 
     @abstractmethod
