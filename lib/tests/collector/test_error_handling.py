@@ -5,8 +5,7 @@ import pytest
 # Import helper functions from conftest
 from tests.conftest import assert_fetch_result, assert_list_not_tuple
 
-# Import helper functions from conftest
-from gameinsights.sources.howlongtobeat import _SearchAuth
+from gameinsights.sources._schemas import _SearchAuth
 
 
 class TestCollectorErrorHandling:

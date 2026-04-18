@@ -3,8 +3,9 @@ from typing import Any
 import aiohttp
 
 from gameinsights.async_.base import AsyncBaseSource
+from gameinsights.sources._parsers import transform_protondb
+from gameinsights.sources._schemas import _PROTONDB_LABELS
 from gameinsights.sources.base import SourceResult, SuccessResult
-from gameinsights.sources.protondb import _PROTONDB_LABELS
 from gameinsights.utils.async_ratelimit import async_rate_limited
 
 
@@ -37,14 +38,13 @@ class AsyncProtonDB(AsyncBaseSource):
                 f"Failed to fetch data with status code: {response.status_code}", verbose=verbose
             )
 
-        try:
-            summary = response.json()
-        except Exception:
+        data = self._fetch_and_parse_json(response)
+        if data is None:
             return self._build_error_result(
                 f"Failed to parse ProtonDB response for game {steam_appid}.", verbose=verbose
             )
 
-        data_packed = self._transform_data(summary)
+        data_packed = self._transform_data(data)
         data_packed["steam_appid"] = steam_appid
 
         if selected_labels:
@@ -57,10 +57,4 @@ class AsyncProtonDB(AsyncBaseSource):
         return SuccessResult(success=True, data=data_packed)
 
     def _transform_data(self, data: dict[str, Any]) -> dict[str, Any]:
-        return {
-            "protondb_tier": data.get("tier"),
-            "protondb_score": data.get("score"),
-            "protondb_trending": data.get("trendingTier"),
-            "protondb_confidence": data.get("confidence"),
-            "protondb_total": data.get("total"),
-        }
+        return transform_protondb(data)

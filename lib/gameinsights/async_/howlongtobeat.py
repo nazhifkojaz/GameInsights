@@ -1,12 +1,16 @@
 import json
-import re
 from typing import Any, cast
 
 import aiohttp
 
 from gameinsights.async_.base import AsyncBaseSource, _AsyncResponse
+from gameinsights.sources._parsers import (
+    extract_hltb_game_data,
+    generate_search_payload,
+    transform_howlongtobeat,
+)
+from gameinsights.sources._schemas import _HOWLONGTOBEAT_LABELS, _SearchAuth
 from gameinsights.sources.base import SYNTHETIC_ERROR_CODE, SourceResult, SuccessResult
-from gameinsights.sources.howlongtobeat import _HOWLONGTOBEAT_LABELS, _SearchAuth
 from gameinsights.utils.async_ratelimit import async_rate_limited
 
 
@@ -64,7 +68,7 @@ class AsyncHowLongToBeat(AsyncBaseSource):
             return self._build_error_result("No game ID in search result.", verbose=verbose)
 
         # Step 3: Fetch full game data from the game page
-        full_data = await self._fetch_game_page(game_id)
+        full_data = await self._fetch_game_page(game_id, verbose=verbose)
         if not full_data:
             full_data = first_result
 
@@ -166,86 +170,22 @@ class AsyncHowLongToBeat(AsyncBaseSource):
             return None
         return response
 
-    async def _fetch_game_page(self, game_id: int) -> dict[str, Any] | None:
+    async def _fetch_game_page(self, game_id: int, verbose: bool = True) -> dict[str, Any] | None:
         headers = {"Referer": self.REFERER_HEADER}
         response = await self._make_request(url=f"{self.BASE_URL}game/{game_id}", headers=headers)
 
         if response.status_code != 200:
             return None
 
-        match = re.search(
-            r'<script id="__NEXT_DATA__".*?>(.*?)</script>',
+        return extract_hltb_game_data(
             response.text,
-            re.DOTALL,
+            game_id,
+            log_fn=lambda msg: self.logger.log(msg, level="debug", verbose=verbose),
         )
-        if match:
-            try:
-                next_data = json.loads(match.group(1))
-                game_data = (
-                    next_data.get("props", {}).get("pageProps", {}).get("game", {}).get("data", {})
-                )
-                game_list = game_data.get("game")
-                if isinstance(game_list, list) and len(game_list) > 0:
-                    return cast(dict[str, Any], game_list[0])
-            except (json.JSONDecodeError, KeyError, IndexError):
-                pass
-
-        return None
 
     @staticmethod
     def _generate_search_payload(game_name: str) -> dict[str, Any]:
-        return {
-            "searchType": "games",
-            "searchTerms": game_name.split(),
-            "searchPage": 1,
-            "size": 1,
-            "searchOptions": {
-                "games": {
-                    "userId": 0,
-                    "platform": "",
-                    "sortCategory": "popular",
-                    "rangeCategory": "main",
-                    "rangeTime": {"min": 0, "max": 0},
-                    "gameplay": {
-                        "perspective": "",
-                        "flow": "",
-                        "genre": "",
-                        "difficulty": "",
-                    },
-                    "rangeYear": {"max": "", "min": ""},
-                    "modifier": "",
-                },
-                "users": {"sortCategory": "postcount"},
-                "lists": {"sortCategory": "follows"},
-                "filter": "",
-                "sort": 0,
-                "randomizer": 0,
-            },
-            "useCache": True,
-        }
+        return generate_search_payload(game_name)
 
     def _transform_data(self, data: dict[str, Any]) -> dict[str, Any]:
-        result: dict[str, Any] = {}
-        time_labels = {
-            "comp_main",
-            "comp_plus",
-            "comp_100",
-            "comp_all",
-            "invested_co",
-            "invested_mp",
-        }
-        for label in self._valid_labels:
-            raw_value: Any = None
-
-            if label in ("comp_main", "comp_plus", "comp_100", "comp_all"):
-                raw_value = data.get(f"{label}_avg")
-            elif label in ("invested_co", "invested_mp"):
-                raw_value = data.get(f"{label}_avg")
-            else:
-                raw_value = data.get(label)
-
-            if raw_value is not None and label in time_labels:
-                result[label] = cast(int, raw_value) // 60
-            else:
-                result[label] = raw_value
-        return result
+        return transform_howlongtobeat(data)

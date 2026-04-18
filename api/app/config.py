@@ -4,7 +4,6 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 class Settings(BaseSettings):
     steam_api_key: SecretStr | None = None
-    gamalytic_api_key: SecretStr | None = None
     region: str = "us"
     language: str = "english"
     rate_limit_calls: int = 60
@@ -39,6 +38,4 @@ class Settings(BaseSettings):
             return []
         return v
 
-    model_config = SettingsConfigDict(
-        env_prefix="GAMEINSIGHTS_", env_file=".env", extra="ignore"
-    )
+    model_config = SettingsConfigDict(env_prefix="GAMEINSIGHTS_", env_file=".env", extra="ignore")

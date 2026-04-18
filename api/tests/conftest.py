@@ -80,9 +80,7 @@ async def client(mock_pool, mock_cache, mock_game_search, monkeypatch):
     app.dependency_overrides[get_settings] = lambda: settings
     app.dependency_overrides[get_game_search] = lambda: mock_game_search
 
-    async with TestClient(
-        transport=ASGITransport(app=app), base_url="http://test"
-    ) as ac:
+    async with TestClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
         ac.mock_collector = mock_collector
         ac.mock_game_search = mock_game_search
         yield ac

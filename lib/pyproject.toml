@@ -12,6 +12,7 @@ dependencies = [
     "fake-useragent>=2.2.0",
     "ratelimit>=2.2.1",
     "pydantic>=2.11.7",
+    "typing-extensions>=4.0",
 ]
 
 [project.optional-dependencies]
@@ -37,6 +38,7 @@ dev = [
     "pytest-asyncio>=0.24",
     "pandas-stubs>=2.2.2",
     "types-beautifulsoup4>=4.12",
+    "types-ratelimit>=2.2",
     "aiohttp>=3.9",
     "aiolimiter>=1.1",
 ]
@@ -96,7 +98,7 @@ warn_no_return = true
 warn_return_any = true
 
 [[tool.mypy.overrides]]
-module = ["requests.*", "bs4.*", "fake_useragent.*", "ratelimit.*"]
+module = ["requests.*", "bs4.*", "fake_useragent.*"]
 ignore_missing_imports = true
 
 [[tool.mypy.overrides]]

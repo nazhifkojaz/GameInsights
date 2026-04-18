@@ -3,8 +3,9 @@ from typing import Any
 import aiohttp
 
 from gameinsights.async_.base import AsyncBaseSource
+from gameinsights.sources._parsers import transform_steamstore
+from gameinsights.sources._schemas import _STEAM_LABELS
 from gameinsights.sources.base import SourceResult, SuccessResult
-from gameinsights.sources.steamstore import _STEAM_LABELS
 from gameinsights.utils.async_ratelimit import async_rate_limited
 
 
@@ -54,7 +55,7 @@ class AsyncSteamStore(AsyncBaseSource):
         params = {"appids": steam_appid, "cc": self._region, "l": self._language}
         response = await self._make_request(params=params)
 
-        data = self._fetch_and_parse_json(response, verbose)
+        data = self._fetch_and_parse_json(response)
         if data is None:
             return self._build_error_result(
                 f"Failed to connect to API. Status code: {response.status_code}.",
@@ -73,54 +74,4 @@ class AsyncSteamStore(AsyncBaseSource):
         )
 
     def _transform_data(self, data: dict[str, Any]) -> dict[str, Any]:
-        price_overview = data.get("price_overview") or {}
-        release_date = data.get("release_date") or {}
-        platforms = data.get("platforms") or {}
-        genres = data.get("genres") or []
-        categories = data.get("categories") or []
-        ratings = data.get("ratings") or {}
-
-        return {
-            "steam_appid": data.get("steam_appid"),
-            "name": data.get("name"),
-            "type": data.get("type"),
-            "is_coming_soon": release_date.get("coming_soon"),
-            "release_date": release_date.get("date"),
-            "is_free": data.get("is_free"),
-            "price_currency": price_overview.get("currency"),
-            "price_initial": (
-                price_overview.get("initial") / 100  # type: ignore[operator]
-                if isinstance(price_overview, dict) and price_overview.get("initial") is not None
-                else None
-            ),
-            "price_final": (
-                price_overview.get("final") / 100  # type: ignore[operator]
-                if isinstance(price_overview, dict) and price_overview.get("final") is not None
-                else None
-            ),
-            "developers": data.get("developers"),
-            "publishers": data.get("publishers"),
-            "platforms": [
-                platform
-                for platform, is_supported in platforms.items()
-                if isinstance(platforms, dict) and is_supported
-            ],
-            "categories": [category.get("description") for category in categories],
-            "genres": [genre.get("description") for genre in genres],
-            "metacritic_score": data.get("metacritic", {}).get("score"),
-            "recommendations": (
-                data.get("recommendations", {}).get("total")
-                if isinstance(data.get("recommendations"), dict)
-                else data.get("recommendations")
-            ),
-            "achievements": data.get("achievements", {}).get("total"),
-            "content_rating": (
-                [
-                    {"rating_type": rating_type, "rating": rating.get("rating")}
-                    for rating_type, rating in ratings.items()
-                    if isinstance(ratings, dict) and isinstance(rating, dict)
-                ]
-                if ratings
-                else []
-            ),
-        }
+        return transform_steamstore(data)

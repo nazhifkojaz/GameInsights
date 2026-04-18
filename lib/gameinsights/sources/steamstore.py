@@ -2,29 +2,10 @@ from typing import Any
 
 import requests
 
+from gameinsights.sources._parsers import transform_steamstore
+from gameinsights.sources._schemas import _STEAM_LABELS
 from gameinsights.sources.base import BaseSource, SourceResult, SuccessResult
 from gameinsights.utils.ratelimit import logged_rate_limited
-
-_STEAM_LABELS = (
-    "steam_appid",
-    "name",
-    "type",
-    "is_free",
-    "developers",
-    "publishers",
-    "price_currency",
-    "price_initial",
-    "price_final",
-    "platforms",
-    "categories",
-    "genres",
-    "metacritic_score",
-    "recommendations",
-    "achievements",
-    "is_coming_soon",
-    "release_date",
-    "content_rating",
-)
 
 
 class SteamStore(BaseSource):
@@ -54,43 +35,28 @@ class SteamStore(BaseSource):
 
     @property
     def region(self) -> str:
-        """Get the region for the Steam API."""
         return self._region
 
     @region.setter
     def region(self, value: str) -> None:
-        """Set the region for the Steam API.
-        Args:
-            value (str): Region for the API request.
-        """
         if self._region != value:
             self._region = value
 
     @property
     def language(self) -> str:
-        """Get the language for the Steam API."""
         return self._language
 
     @language.setter
     def language(self, value: str) -> None:
-        """Set the language for the Steam API.
-        Args:
-            value (str): Language for the API request.
-        """
         if self._language != value:
             self._language = value
 
     @property
     def api_key(self) -> str | None:
-        """Get the API key for the Steam API."""
         return self._api_key
 
     @api_key.setter
     def api_key(self, value: str) -> None:
-        """Set the API key for the Steam API.
-        Args:
-            value (str): API key for Steam API.
-        """
         if self._api_key != value:
             self._api_key = value
 
@@ -116,18 +82,16 @@ class SteamStore(BaseSource):
 
         steam_appid = self._prepare_identifier(steam_appid, verbose)
 
-        # Make the request to steam store API
         params = {"appids": steam_appid, "cc": self.region, "l": self.language}
         response = self._make_request(params=params)
 
-        data = self._fetch_and_parse_json(response, verbose)
+        data = self._fetch_and_parse_json(response)
         if data is None:
             return self._build_error_result(
                 f"Failed to connect to API. Status code: {response.status_code}.",
                 verbose=verbose,
             )
 
-        # check if the response contains the expected data
         if steam_appid not in data or not data[steam_appid]["success"]:
             return self._build_error_result(
                 f"Failed to fetch data for appid {steam_appid}, or appid is not available in the specified region ({self.region}) or language ({self.language}).",
@@ -141,55 +105,4 @@ class SteamStore(BaseSource):
         )
 
     def _transform_data(self, data: dict[str, Any]) -> dict[str, Any]:
-        # repack / process the data if needed
-        price_overview = data.get("price_overview") or {}
-        release_date = data.get("release_date") or {}
-        platforms = data.get("platforms") or {}
-        genres = data.get("genres") or []
-        categories = data.get("categories") or []
-        ratings = data.get("ratings") or {}
-
-        return {  # Default to None
-            "steam_appid": data.get("steam_appid"),
-            "name": data.get("name"),
-            "type": data.get("type"),
-            "is_coming_soon": release_date.get("coming_soon"),
-            "release_date": release_date.get("date"),
-            "is_free": data.get("is_free"),
-            "price_currency": price_overview.get("currency"),
-            "price_initial": (
-                price_overview.get("initial") / 100  # type: ignore[operator]
-                if isinstance(price_overview, dict) and price_overview.get("initial") is not None
-                else None
-            ),
-            "price_final": (
-                price_overview.get("final") / 100  # type: ignore[operator]
-                if isinstance(price_overview, dict) and price_overview.get("final") is not None
-                else None
-            ),
-            "developers": data.get("developers"),
-            "publishers": data.get("publishers"),
-            "platforms": [
-                platform
-                for platform, is_supported in platforms.items()
-                if isinstance(platforms, dict) and is_supported
-            ],
-            "categories": [category.get("description") for category in categories],
-            "genres": [genre.get("description") for genre in genres],
-            "metacritic_score": data.get("metacritic", {}).get("score"),
-            "recommendations": (
-                data.get("recommendations", {}).get("total")
-                if isinstance(data.get("recommendations"), dict)
-                else data.get("recommendations")
-            ),
-            "achievements": data.get("achievements", {}).get("total"),
-            "content_rating": (
-                [
-                    {"rating_type": rating_type, "rating": rating.get("rating")}
-                    for rating_type, rating in ratings.items()
-                    if isinstance(ratings, dict) and isinstance(rating, dict)
-                ]
-                if ratings
-                else []
-            ),
-        }
+        return transform_steamstore(data)

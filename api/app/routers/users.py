@@ -20,9 +20,7 @@ async def get_user(
     cache: DatabaseCache = Depends(get_cache),
     settings: Settings = Depends(get_settings),
 ) -> list[dict[str, Any]]:
-    cache_key = cache.make_key(
-        Endpoint.USER, steamid, settings.region, settings.language
-    )
+    cache_key = cache.make_key(Endpoint.USER, steamid, settings.region, settings.language)
     cached = await cache.get(cache_key)
     if cached is not None:
         return cached
@@ -33,7 +31,5 @@ async def get_user(
             collector.get_user_data, steamid, return_as="list", verbose=False
         )
 
-    await cache.set(
-        cache_key, Endpoint.USER, steamid, settings.region, settings.language, results
-    )
+    await cache.set(cache_key, Endpoint.USER, steamid, settings.region, settings.language, results)
     return results

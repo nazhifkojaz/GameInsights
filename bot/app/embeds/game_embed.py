@@ -55,7 +55,6 @@ def build_players_graph(data: list[dict[str, Any]], appid: str = "") -> discord.
     Creates a line graph showing historical player count data over time.
     Uses only Pillow (no matplotlib) for a lightweight solution.
     """
-    # Discord dark theme colors
     BG_COLOR = (44, 47, 51)  # #2C2F33
     LINE_COLOR = (88, 101, 242)  # #5865F2 (Discord blurple)
     TEXT_COLOR = (255, 255, 255)  # White
@@ -64,7 +63,6 @@ def build_players_graph(data: list[dict[str, Any]], appid: str = "") -> discord.
     ALL_TIME_BADGE_COLOR = (59, 165, 93)  # #3BA55D (Green)
     FILL_ALPHA = 0.3
 
-    # Image dimensions
     WIDTH, HEIGHT = 1000, 500
     MARGIN = 80
     GRAPH_TOP = 100
@@ -72,7 +70,6 @@ def build_players_graph(data: list[dict[str, Any]], appid: str = "") -> discord.
     GRAPH_LEFT = MARGIN
     GRAPH_RIGHT = WIDTH - MARGIN
 
-    # Create image
     img = Image.new("RGB", (WIDTH, HEIGHT), BG_COLOR)
     draw = ImageDraw.Draw(img)
 
@@ -134,13 +131,11 @@ def build_players_graph(data: list[dict[str, Any]], appid: str = "") -> discord.
             max_val = max(values)
             val_range = max_val - min_val if max_val != min_val else 1
 
-            # Draw title
             title = f"Player History: {game_name}"
             draw.text(
                 (WIDTH // 2, 30), title, fill=TEXT_COLOR, font=title_font, anchor="mm"
             )
 
-            # Draw axes
             draw.line(
                 [(GRAPH_LEFT, GRAPH_BOTTOM), (GRAPH_RIGHT, GRAPH_BOTTOM)],
                 fill=GRID_COLOR,
@@ -152,14 +147,12 @@ def build_players_graph(data: list[dict[str, Any]], appid: str = "") -> discord.
                 width=2,
             )
 
-            # Draw Y-axis labels and grid lines
             num_y_ticks = 5
             for i in range(num_y_ticks + 1):
                 y_ratio = i / num_y_ticks
                 y_pos = GRAPH_BOTTOM - y_ratio * (GRAPH_BOTTOM - GRAPH_TOP)
                 val = min_val + y_ratio * val_range
 
-                # Grid line
                 if i > 0:
                     draw.line(
                         [(GRAPH_LEFT, y_pos), (GRAPH_RIGHT, y_pos)],
@@ -167,7 +160,6 @@ def build_players_graph(data: list[dict[str, Any]], appid: str = "") -> discord.
                         width=1,
                     )
 
-                # Label
                 label = format_number(int(val))
                 draw.text(
                     (GRAPH_LEFT - 10, y_pos),
@@ -177,7 +169,6 @@ def build_players_graph(data: list[dict[str, Any]], appid: str = "") -> discord.
                     anchor="rm",
                 )
 
-            # Calculate points
             graph_width = GRAPH_RIGHT - GRAPH_LEFT
             graph_height = GRAPH_BOTTOM - GRAPH_TOP
             num_points = len(values)
@@ -211,11 +202,9 @@ def build_players_graph(data: list[dict[str, Any]], appid: str = "") -> discord.
                 img = Image.composite(fill_layer, img, mask)
                 draw = ImageDraw.Draw(img)
 
-            # Draw line
             if len(points) > 1:
                 draw.line(points, fill=LINE_COLOR, width=3)
 
-            # Draw points
             for x, y in points:
                 # White circle with blurple center
                 r = 5
@@ -239,7 +228,6 @@ def build_players_graph(data: list[dict[str, Any]], appid: str = "") -> discord.
                     anchor="mm",
                 )
 
-            # Add peak annotation
             peak_idx = values.index(max_val)
             peak_x, peak_y = points[peak_idx]
             peak_label = f"Peak: {format_number(max_val)}"
@@ -262,7 +250,6 @@ def build_players_graph(data: list[dict[str, Any]], appid: str = "") -> discord.
                 anchor="mm",
             )
 
-            # Add all-time peak text
             all_time_peak = game_data.get("peak_active_player_all_time")
             if all_time_peak:
                 all_time_label = f"All-Time Peak: {format_number(all_time_peak)}"
@@ -288,7 +275,6 @@ def build_players_graph(data: list[dict[str, Any]], appid: str = "") -> discord.
                     anchor="mm",
                 )
 
-    # Save to buffer
     buffer = BytesIO()
     img.save(buffer, format="PNG", optimize=True)
     buffer.seek(0)

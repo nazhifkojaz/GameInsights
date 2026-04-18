@@ -5,7 +5,7 @@ from unittest.mock import patch
 import pytest
 
 from gameinsights import Collector, GameNotFoundError
-from gameinsights.sources.howlongtobeat import _SearchAuth
+from gameinsights.sources._schemas import _SearchAuth
 
 
 class TestMultiAppidScenarios:
@@ -34,10 +34,28 @@ class TestMultiAppidScenarios:
         def mock_get(*args, **kwargs):
             call_count[0] += 1
             if call_count[0] == 1:
-                # First call - success
+                # First call - success with all SteamStore config fields
                 return {
                     "success": True,
-                    "data": {"steam_appid": "12345", "name": "Success Game"},
+                    "data": {
+                        "steam_appid": "12345",
+                        "name": "Success Game",
+                        "developers": ["Dev A"],
+                        "publishers": ["Pub A"],
+                        "type": "game",
+                        "price_currency": "USD",
+                        "price_initial": 2999,
+                        "price_final": 1999,
+                        "categories": ["Single-player"],
+                        "platforms": ["windows"],
+                        "genres": ["Action"],
+                        "metacritic_score": 85,
+                        "release_date": "Jan 1, 2025",
+                        "content_rating": [],
+                        "is_free": False,
+                        "is_coming_soon": False,
+                        "recommendations": 1234,
+                    },
                 }
             else:
                 # Second call - failure

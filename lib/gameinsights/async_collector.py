@@ -1,15 +1,21 @@
 from __future__ import annotations
 
 import asyncio
-from typing import TYPE_CHECKING, Any, Literal, NamedTuple
+from typing import TYPE_CHECKING, Any
 
 import aiohttp
 
 from gameinsights._collector_utils import (
+    FetchResult,
+    _SourceConfig,
     classify_source_error,
+    normalize_active_player_rows,
     post_process_raw_data,
     raise_for_fetch_failure,
+    record_fetch_exception,
+    record_fetch_outcome,
 )
+from gameinsights._types import ReturnFormat, Scope
 from gameinsights.async_.base import AsyncBaseSource
 from gameinsights.async_.howlongtobeat import AsyncHowLongToBeat
 from gameinsights.async_.protondb import AsyncProtonDB
@@ -19,7 +25,6 @@ from gameinsights.async_.steamreview import AsyncSteamReview
 from gameinsights.async_.steamspy import AsyncSteamSpy
 from gameinsights.async_.steamstore import AsyncSteamStore
 from gameinsights.async_.steamuser import AsyncSteamUser
-from gameinsights.collector import FetchResult
 from gameinsights.exceptions import (
     DependencyNotInstalledError,
     GameInsightsError,
@@ -34,11 +39,7 @@ from gameinsights.utils.import_optional import import_pandas
 if TYPE_CHECKING:
     import pandas as pd
 
-
-class AsyncSourceConfig(NamedTuple):
-    source: AsyncBaseSource
-    fields: list[str]
-    is_primary: bool = False
+AsyncSourceConfig = _SourceConfig[AsyncBaseSource]
 
 
 class AsyncCollector:
@@ -64,7 +65,6 @@ class AsyncCollector:
         region: str = "us",
         language: str = "english",
         steam_api_key: str | None = None,
-        gamalytic_api_key: str | None = None,
         boxleiter_multiplier: int = 30,
         calls: int = 60,
         period: int = 60,
@@ -72,7 +72,6 @@ class AsyncCollector:
         self._region = region
         self._language = language
         self._steam_api_key = steam_api_key
-        self._gamalytic_api_key = gamalytic_api_key
         self._boxleiter_multiplier = boxleiter_multiplier
         self.calls = calls
         self.period = period
@@ -142,8 +141,6 @@ class AsyncCollector:
                 ],
                 is_primary=True,
             ),
-            # DISABLED: Gamalytic free endpoint removed. Re-enable by uncommenting
-            # when the endpoint is available again or a replacement is found.
             AsyncSourceConfig(
                 self.steamspy,
                 ["ccu", "tags", "discount", "average_playtime_min", "languages"],
@@ -268,7 +265,7 @@ class AsyncCollector:
         self,
         source: AsyncBaseSource,
         identifier: str,
-        scope: Literal["id", "name"],
+        scope: Scope,
         verbose: bool,
     ) -> SourceResult:
         source_name = source.__class__.__name__
@@ -287,31 +284,17 @@ class AsyncCollector:
             ) as timing:
                 result = await source.fetch(identifier, verbose=verbose)
         except Exception as exc:
-            metrics.counter("source_fetch_exception_total", source=source_name, scope=scope)
-            source.logger.log_event(
-                "source_fetch_exception",
-                level="error",
-                verbose=True,
-                scope=scope,
-                identifier=identifier,
-                error=str(exc),
-            )
+            record_fetch_exception(source_name, scope, source.logger, identifier, str(exc))
             raise
 
-        duration_ms = round(timing.duration * 1000, 2)
-        metrics.counter("source_fetch_total", source=source_name, scope=scope)
-        if result["success"]:
-            metrics.counter("source_fetch_success_total", source=source_name, scope=scope)
-        else:
-            metrics.counter("source_fetch_error_total", source=source_name, scope=scope)
-
-        source.logger.log_event(
-            "source_fetch_complete",
-            verbose=verbose,
-            scope=scope,
-            identifier=identifier,
-            success=result["success"],
-            duration_ms=duration_ms,
+        record_fetch_outcome(
+            source_name,
+            scope,
+            source.logger,
+            identifier,
+            verbose,
+            timing,
+            result["success"],
         )
 
         return result
@@ -363,13 +346,6 @@ class AsyncCollector:
                     f"Error fetching data for game {appid}: {e}", level="error", verbose=True
                 )
                 all_results.append(FetchResult(identifier=str(appid), success=False, error=str(e)))
-            except Exception as e:
-                self.logger.log(
-                    f"Error fetching data for game {appid} with {e} error..",
-                    level="error",
-                    verbose=True,
-                )
-                all_results.append(FetchResult(identifier=str(appid), success=False, error=str(e)))
 
         if include_failures:
             return result, all_results
@@ -382,7 +358,7 @@ class AsyncCollector:
         verbose: bool = True,
         include_failures: bool = False,
         *,
-        return_as: Literal["list", "dataframe"] = "list",
+        return_as: ReturnFormat = "list",
     ) -> (
         list[dict[str, Any]]
         | "pd.DataFrame"
@@ -461,20 +437,9 @@ class AsyncCollector:
                 all_results.append(FetchResult(identifier=str(appid), success=False, error=str(e)))
             all_data.append(game_record)
 
-        sorted_months = sorted(all_months)
-        fixed_columns = ["steam_appid", "name", "peak_active_player_all_time"]
-        numeric_columns = ["peak_active_player_all_time"] + sorted_months
-
-        normalized_data: list[dict[str, Any]] = []
-        for record in all_data:
-            normalized_record: dict[str, Any] = {}
-            for col in fixed_columns + sorted_months:
-                value = record.get(col)
-                if col in numeric_columns:
-                    normalized_record[col] = value if value is not None else fill_na_as
-                else:
-                    normalized_record[col] = value
-            normalized_data.append(normalized_record)
+        normalized_data, sorted_months, fixed_columns, numeric_columns = (
+            normalize_active_player_rows(all_data, all_months, fill_na_as)
+        )
 
         if return_as == "dataframe":
             pd = self._require_pandas()
@@ -490,7 +455,7 @@ class AsyncCollector:
         verbose: bool = True,
         review_only: bool = True,
         *,
-        return_as: Literal["list", "dataframe"] = "list",
+        return_as: ReturnFormat = "list",
     ) -> list[dict[str, Any]] | "pd.DataFrame":
         """Fetch all reviews for a game."""
         await self._ensure_initialized()
@@ -505,24 +470,17 @@ class AsyncCollector:
         )
 
         records: list[dict[str, Any]] = []
-        try:
-            reviews_data = await self.steamreview.fetch(
-                steam_appid=steam_appid,
-                verbose=verbose,
-                filter="recent",
-                language="all",
-                review_type="all",
-                purchase_type="all",
-                mode="review",
-            )
-            if reviews_data["success"]:
-                records = (
-                    reviews_data["data"]["reviews"] if review_only else [reviews_data["data"]]
-                )
-        except Exception as e:
-            self.logger.log(
-                f"Error fetching reviews for appid {steam_appid}: {e}", level="error", verbose=True
-            )
+        reviews_data = await self.steamreview.fetch(
+            steam_appid=steam_appid,
+            verbose=verbose,
+            filter="recent",
+            language="all",
+            review_type="all",
+            purchase_type="all",
+            mode="review",
+        )
+        if reviews_data["success"]:
+            records = reviews_data["data"]["reviews"] if review_only else [reviews_data["data"]]
 
         if return_as == "dataframe":
             pd = self._require_pandas()
@@ -534,7 +492,7 @@ class AsyncCollector:
         self,
         steamids: str | list[str],
         include_free_games: bool = True,
-        return_as: Literal["list", "dataframe"] = "dataframe",
+        return_as: ReturnFormat = "dataframe",
         verbose: bool = True,
     ) -> list[dict[str, Any]] | "pd.DataFrame":
         """Fetch user data for one or more Steam IDs."""
@@ -551,18 +509,11 @@ class AsyncCollector:
                 level="info",
                 verbose=verbose,
             )
-            try:
-                fetch_result = await self.steamuser.fetch(
-                    steamid=steamid, include_free_games=include_free_games, verbose=verbose
-                )
-                user_data = (
-                    fetch_result["data"] if fetch_result["success"] else {"steamid": steamid}
-                )
-                results.append(user_data)
-            except Exception as e:
-                self.logger.log(
-                    f"Error fetching data for steamid {steamid}: {e}", level="error", verbose=True
-                )
+            fetch_result = await self.steamuser.fetch(
+                steamid=steamid, include_free_games=include_free_games, verbose=verbose
+            )
+            user_data = fetch_result["data"] if fetch_result["success"] else {"steamid": steamid}
+            results.append(user_data)
 
         if return_as == "dataframe":
             pd = self._require_pandas()

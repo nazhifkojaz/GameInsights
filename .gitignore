@@ -30,3 +30,6 @@ htmlcov/
 # Generated
 docs/
 .python-version
+
+# MCP
+.playwright-mcp/

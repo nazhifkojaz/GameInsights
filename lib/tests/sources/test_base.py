@@ -248,18 +248,6 @@ class TestConnectionPooling:
         assert https_adapter._pool_maxsize == 20
         session.close()
 
-    def test_close_session_classmethod_is_deprecated_noop(self):
-        """BaseSource.close_session() emits DeprecationWarning and does nothing."""
-        import warnings
-
-        with warnings.catch_warnings(record=True) as caught:
-            warnings.simplefilter("always")
-            BaseSource.close_session()
-
-        assert len(caught) == 1
-        assert issubclass(caught[0].category, DeprecationWarning)
-        assert "close_session" in str(caught[0].message)
-
     def test_two_collectors_have_independent_sessions(self):
         """Each Collector gets its own session — no shared singleton."""
         from gameinsights import Collector

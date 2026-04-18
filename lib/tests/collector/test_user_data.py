@@ -2,8 +2,10 @@
 
 from unittest.mock import patch
 
+import pytest
+
 from gameinsights import Collector
-from gameinsights.sources.howlongtobeat import _SearchAuth
+from gameinsights.sources._schemas import _SearchAuth
 
 
 class TestGetUserData:
@@ -85,8 +87,8 @@ class TestGetUserData:
 
         assert result == []
 
-    def test_get_user_data_handles_fetch_exception(self, monkeypatch):
-        """Test that exceptions from SteamUser.fetch are handled gracefully."""
+    def test_get_user_data_handles_fetch_failure(self, monkeypatch):
+        """Test that ErrorResult from SteamUser.fetch is handled gracefully."""
         from gameinsights.sources import HowLongToBeat, SteamUser
 
         def mock_get_token(*args, **kwargs):
@@ -100,21 +102,24 @@ class TestGetUserData:
 
         monkeypatch.setattr(HowLongToBeat, "_get_search_auth", mock_get_token)
 
-        # Mock SteamUser to raise an exception during fetch
-        with patch.object(SteamUser, "fetch", side_effect=ConnectionError("Network error")):
+        # Mock SteamUser to return an error (fetch contractually never raises)
+        mock_response = {
+            "success": False,
+            "error": "Network error",
+        }
+        with patch.object(SteamUser, "fetch", return_value=mock_response):
             with patch("time.sleep"):
                 collector = Collector()
-                # Should handle the exception by logging and continuing
-                # Since fetch fails before appending to results, list will be empty
                 result = collector.get_user_data("76561198000000000", return_as="list")
 
-        # Exception should be caught and logged
-        # Result is an empty list since nothing was successfully fetched
+        # Should fall back to steamid-only record
         assert isinstance(result, list)
-        assert len(result) == 0
+        assert len(result) == 1
+        assert result[0] == {"steamid": "76561198000000000"}
 
     def test_get_user_data_default_is_dataframe(self, monkeypatch):
         """Test that default return_as is 'dataframe'."""
+        pd = pytest.importorskip("pandas")
         from gameinsights.sources import HowLongToBeat, SteamUser
 
         def mock_get_token(*args, **kwargs):
@@ -136,8 +141,6 @@ class TestGetUserData:
         with patch.object(SteamUser, "fetch", return_value=mock_response):
             with patch("time.sleep"):
                 collector = Collector()
-                # Default should be dataframe (not list)
-                import pandas as pd
 
                 df = collector.get_user_data("76561198000000000")
 
@@ -145,6 +148,7 @@ class TestGetUserData:
 
     def test_get_user_data_return_as_list(self, monkeypatch):
         """Test get_user_data with return_as='list'."""
+        pytest.importorskip("pandas")
         from gameinsights.sources import HowLongToBeat, SteamUser
 
         def mock_get_token(*args, **kwargs):

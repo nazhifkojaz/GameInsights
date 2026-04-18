@@ -4,7 +4,8 @@ from __future__ import annotations
 
 from typing import Any, Literal
 
-from gameinsights.collector import FetchResult, SourceConfig
+from gameinsights._collector_utils import FetchResult
+from gameinsights.collector import SourceConfig
 
 
 class DummySource:
@@ -23,10 +24,8 @@ class DummyCollector:
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         steamstore = DummySource("SteamStore")
-        gamalytic = DummySource("Gamalytic")
         self._id_based_sources = [
             SourceConfig(steamstore, ["steam_appid", "name", "price_final"]),
-            SourceConfig(gamalytic, ["copies_sold"]),
         ]
         self._name_based_sources: list[SourceConfig] = []
         self._records = [

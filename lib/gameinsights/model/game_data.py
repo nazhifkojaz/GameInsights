@@ -5,6 +5,8 @@ from typing import Any, ClassVar
 from pydantic import BaseModel, Field, field_validator, model_validator
 from typing_extensions import Self
 
+from gameinsights.model.types import AchievementEntry, ContentRating, MonthlyActivePlayer
+
 
 class GameDataModel(BaseModel):
     """Complete game data model with Python 3.10+ type hints and Pydantic v2 validation.
@@ -46,15 +48,13 @@ class GameDataModel(BaseModel):
     estimated_revenue: int | None = Field(
         default=None, description="estimated revenue in USD (via Boxleiter method)"
     )
-    # TODO: Implement total_revenue field - currently disabled pending data source verification
-    # total_revenue: float = Field(default=float("nan"))
     owners: int | None = Field(default=None)
     followers: int | None = Field(default=None, description="Steam wishlist/follower count")
     early_access: bool | None = Field(default=None, description="Whether game is in early access")
     ccu: int | None = Field(default=None)
     active_player_24h: int | None = Field(default=None)
     peak_active_player_all_time: int | None = Field(default=None)
-    monthly_active_player: list[dict[str, Any]] = Field(default_factory=list)
+    monthly_active_player: list[MonthlyActivePlayer] = Field(default_factory=list)
     review_score: int | None = Field(default=None)
     review_score_desc: str | None = Field(default=None)
     total_positive: int | None = Field(default=None)
@@ -62,7 +62,7 @@ class GameDataModel(BaseModel):
     total_reviews: int | None = Field(default=None)
     achievements_count: int | None = Field(default=None)
     achievements_percentage_average: float | None = Field(default=None)
-    achievements_list: list[dict[str, Any]] = Field(default_factory=list)
+    achievements_list: list[AchievementEntry] = Field(default_factory=list)
     comp_main: int | None = Field(default=None)
     comp_plus: int | None = Field(default=None)
     comp_100: int | None = Field(default=None)
@@ -86,7 +86,7 @@ class GameDataModel(BaseModel):
     categories: list[str] = Field(default_factory=list)
     genres: list[str] = Field(default_factory=list)
     tags: list[str] = Field(default_factory=list)
-    content_rating: list[dict[str, Any]] = Field(default_factory=list)
+    content_rating: list[ContentRating] = Field(default_factory=list)
 
     # ProtonDB fields (Linux/Steam Deck compatibility)
     protondb_tier: str | None = Field(default=None)
@@ -118,8 +118,6 @@ class GameDataModel(BaseModel):
         "metacritic_score",
         "copies_sold",
         "estimated_revenue",
-        # TODO: Re-enable when total_revenue field is implemented
-        # "total_revenue",
         "owners",
         "followers",
         "ccu",
@@ -153,7 +151,7 @@ class GameDataModel(BaseModel):
         mode="before",
     )
     def handle_integers(cls, v: str | int | float | None) -> int | None:
-        """convert x types to int"""
+        """Coerce numeric-like values to int; None and unparseable values become None."""
         if v is None:
             return None
         try:

@@ -3,13 +3,32 @@
 from __future__ import annotations
 
 import re
-from typing import Any
+from dataclasses import dataclass
+from typing import Any, Generic, NamedTuple, TypeVar
 
 from gameinsights.exceptions import (
     GameInsightsError,
     GameNotFoundError,
     SourceUnavailableError,
 )
+
+SourceT = TypeVar("SourceT", covariant=True)
+
+
+@dataclass
+class FetchResult:
+    """Result of fetching data for a single game/user."""
+
+    identifier: str
+    success: bool
+    data: dict[str, Any] | None = None
+    error: str | None = None
+
+
+class _SourceConfig(NamedTuple, Generic[SourceT]):
+    source: SourceT
+    fields: list[str]
+    is_primary: bool = False
 
 
 def post_process_raw_data(raw_data: dict[str, Any], boxleiter_multiplier: int) -> None:
@@ -127,3 +146,80 @@ def raise_for_fetch_failure(
         raise SourceUnavailableError(source=source_name, reason=error_message)
 
     raise exc
+
+
+def record_fetch_outcome(
+    source_name: str,
+    scope: str,
+    logger: Any,
+    identifier: str,
+    verbose: bool,
+    timing: Any,
+    success: bool,
+) -> None:
+    """Record metrics and log the outcome of a source fetch."""
+    from gameinsights.utils import metrics
+
+    duration_ms = round(timing.duration * 1000, 2)
+    metrics.counter("source_fetch_total", source=source_name, scope=scope)
+    if success:
+        metrics.counter("source_fetch_success_total", source=source_name, scope=scope)
+    else:
+        metrics.counter("source_fetch_error_total", source=source_name, scope=scope)
+    logger.log_event(
+        "source_fetch_complete",
+        verbose=verbose,
+        scope=scope,
+        identifier=identifier,
+        success=success,
+        duration_ms=duration_ms,
+    )
+
+
+def record_fetch_exception(
+    source_name: str,
+    scope: str,
+    logger: Any,
+    identifier: str,
+    error: str,
+) -> None:
+    """Record metrics and log for a source fetch exception."""
+    from gameinsights.utils import metrics
+
+    metrics.counter("source_fetch_exception_total", source=source_name, scope=scope)
+    logger.log_event(
+        "source_fetch_exception",
+        level="error",
+        verbose=True,
+        scope=scope,
+        identifier=identifier,
+        error=error,
+    )
+
+
+def normalize_active_player_rows(
+    all_data: list[dict[str, Any]],
+    all_months: set[str],
+    fill_na_as: int = -1,
+) -> tuple[list[dict[str, Any]], list[str], list[str], list[str]]:
+    """Normalize active-player monthly data, filling missing months.
+
+    Returns:
+        (normalized_data, sorted_months, fixed_columns, numeric_columns)
+    """
+    sorted_months = sorted(all_months)
+    fixed_columns = ["steam_appid", "name", "peak_active_player_all_time"]
+    numeric_columns = ["peak_active_player_all_time"] + sorted_months
+
+    normalized_data: list[dict[str, Any]] = []
+    for record in all_data:
+        normalized_record: dict[str, Any] = {}
+        for col in fixed_columns + sorted_months:
+            value = record.get(col)
+            if col in numeric_columns:
+                normalized_record[col] = value if value is not None else fill_na_as
+            else:
+                normalized_record[col] = value
+        normalized_data.append(normalized_record)
+
+    return normalized_data, sorted_months, fixed_columns, numeric_columns

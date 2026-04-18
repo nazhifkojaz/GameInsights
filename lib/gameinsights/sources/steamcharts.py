@@ -1,20 +1,13 @@
-from datetime import datetime
 from typing import Any
 
 import requests
 from bs4 import BeautifulSoup
 from bs4.element import Tag
 
+from gameinsights.sources._parsers import transform_steamcharts
+from gameinsights.sources._schemas import _STEAMCHARTS_LABELS
 from gameinsights.sources.base import BaseSource, SourceResult, SuccessResult
 from gameinsights.utils.ratelimit import logged_rate_limited
-
-_STEAMCHARTS_LABELS = (
-    "steam_appid",
-    "name",
-    "active_player_24h",
-    "peak_active_player_all_time",
-    "monthly_active_player",
-)
 
 
 class SteamCharts(BaseSource):
@@ -57,10 +50,8 @@ class SteamCharts(BaseSource):
             verbose=verbose,
         )
 
-        # Make sure steam_appid is string
         steam_appid = str(steam_appid)
 
-        # Prepare the headers and make the request to steamchart
         response = self._make_request(endpoint=steam_appid)
 
         if response.status_code != 200:
@@ -84,8 +75,8 @@ class SteamCharts(BaseSource):
             return self._build_error_result(
                 "Failed to parse data, expecting atleast 3 'app-stat' divs.", verbose=verbose
             )
-        # Note: Missing span elements are handled gracefully by _safe_span_text()
-        # which returns None instead of raising AttributeError
+        # Note: Missing span elements are handled gracefully by safe_span_text
+        # in the shared parser (returns None instead of raising)
 
         active_player_data_table = soup.find("table", class_="common-table")
         if not isinstance(active_player_data_table, Tag):
@@ -93,7 +84,7 @@ class SteamCharts(BaseSource):
                 "Failed to parse data, active player data table is not found.", verbose=verbose
             )
 
-        # Skip the "last 30 days" row
+        # SteamCharts prepends two summary rows (last 30 days + all-time) before the monthly history
         player_rows_result = active_player_data_table.find_all("tr")
         player_data_rows = [row for row in player_rows_result if isinstance(row, Tag)][2:]
 
@@ -113,7 +104,8 @@ class SteamCharts(BaseSource):
                     "game_name": game_name_tag,
                     "peak_data": peak_data,
                     "player_data_rows": player_data_rows,
-                }
+                },
+                verbose=verbose,
             ),
         }
 
@@ -125,57 +117,8 @@ class SteamCharts(BaseSource):
 
         return SuccessResult(success=True, data=data_packed)
 
-    @staticmethod
-    def _safe_span_text(element: Tag | None) -> str | None:
-        """Safely extract text from a span element.
-
-        Args:
-            element: A BeautifulSoup Tag element that may contain a span.
-
-        Returns:
-            The span's text content, or None if element/span is missing.
-        """
-        if element is None:
-            return None
-        span = element.span
-        if span is None:
-            return None
-        return span.get_text()
-
-    def _transform_data(self, data: dict[str, Any]) -> dict[str, Any]:
-        game_name_text = data["game_name"].get_text()
-        active_24h = self._safe_span_text(data["peak_data"][1])
-        peak_active = self._safe_span_text(data["peak_data"][2])
-
-        monthly_active_player = []
-        for row in data.get("player_data_rows", []):
-            cols = [col.get_text(strip=True) for col in row.find_all("td")]
-            if len(cols) != 5:
-                self.logger.log(
-                    f"Unexpected row structure: expected 5 cells, got {len(cols)}",
-                    level="warning",
-                    verbose=True,
-                )
-                continue
-            month, avg_players, gain, percentage_gain, peak_players = cols
-
-            monthly_active_player.append(
-                {
-                    "month": datetime.strptime(month, "%B %Y").strftime("%Y-%m"),
-                    "average_players": float(avg_players.replace(",", "")),
-                    "gain": float(gain.replace(",", "")) if gain not in ("-", "") else None,
-                    "percentage_gain": (
-                        float(percentage_gain.replace("%", "").replace(",", "").strip())
-                        if percentage_gain not in ("-", "")
-                        else 0
-                    ),
-                    "peak_players": float(peak_players.replace(",", "")),
-                }
-            )
-
-        return {
-            "name": game_name_text,
-            "active_player_24h": int(active_24h) if active_24h else None,
-            "peak_active_player_all_time": int(peak_active) if peak_active else None,
-            "monthly_active_player": monthly_active_player,
-        }
+    def _transform_data(self, data: dict[str, Any], *, verbose: bool = True) -> dict[str, Any]:
+        return transform_steamcharts(
+            data,
+            log_fn=lambda msg: self.logger.log(msg, level="warning", verbose=verbose),
+        )

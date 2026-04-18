@@ -1,25 +1,39 @@
 from __future__ import annotations
 
 import time
-from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, Literal, NamedTuple
+from typing import TYPE_CHECKING, Any
 
 import requests
 from requests.adapters import HTTPAdapter
 
-from gameinsights import sources
 from gameinsights._collector_utils import (
+    FetchResult,
+    _SourceConfig,
     classify_source_error,
+    normalize_active_player_rows,
     post_process_raw_data,
     raise_for_fetch_failure,
+    record_fetch_exception,
+    record_fetch_outcome,
 )
+from gameinsights._types import ReturnFormat, Scope
 from gameinsights.exceptions import (
     DependencyNotInstalledError,
     GameInsightsError,
     InvalidRequestError,
 )
 from gameinsights.model.game_data import GameDataModel
-from gameinsights.sources.base import SourceResult
+from gameinsights.sources import (
+    HowLongToBeat,
+    ProtonDB,
+    SteamAchievements,
+    SteamCharts,
+    SteamReview,
+    SteamSpy,
+    SteamStore,
+    SteamUser,
+)
+from gameinsights.sources.base import BaseSource, SourceResult
 from gameinsights.utils import LoggerWrapper, metrics
 from gameinsights.utils.import_optional import import_pandas
 from gameinsights.utils.ratelimit import logged_rate_limited
@@ -27,28 +41,7 @@ from gameinsights.utils.ratelimit import logged_rate_limited
 if TYPE_CHECKING:
     import pandas as pd
 
-
-@dataclass
-class FetchResult:
-    """Result of fetching data for a single game/user.
-
-    Attributes:
-        identifier: The appid or steamid that was fetched
-        success: Whether the fetch was successful
-        data: The fetched data (if successful)
-        error: Error message (if failed)
-    """
-
-    identifier: str
-    success: bool
-    data: dict[str, Any] | None = None
-    error: str | None = None
-
-
-class SourceConfig(NamedTuple):
-    source: sources.BaseSource
-    fields: list[str]
-    is_primary: bool = False
+SourceConfig = _SourceConfig[BaseSource]
 
 
 class Collector:
@@ -70,7 +63,6 @@ class Collector:
         region: str = "us",
         language: str = "english",
         steam_api_key: str | None = None,
-        gamalytic_api_key: str | None = None,
         boxleiter_multiplier: int = 30,
         calls: int = 60,
         period: int = 60,
@@ -81,8 +73,6 @@ class Collector:
             region: Region for the API request. Default is "us".
             language: Language for the API request. Default is "english".
             steam_api_key: Optional API key for Steam API.
-            gamalytic_api_key: Optional API key for Gamalytic API.
-                Currently unused (Gamalytic source disabled).
             boxleiter_multiplier: Multiplier for Boxleiter sales estimation.
                 Default is 30 (typical modern median for post-2020 games).
             calls: Max number of API calls allowed per period. Default is 60.
@@ -91,20 +81,17 @@ class Collector:
         self._region = region
         self._language = language
         self._steam_api_key = steam_api_key
-        self._gamalytic_api_key = gamalytic_api_key
         self._boxleiter_multiplier = boxleiter_multiplier
         self.calls = calls
         self.period = period
         self._closed = False
 
-        # Create session before initializing sources
         self._session = self._create_session()
 
         try:
             self._init_sources()
             self._init_sources_config()
         except Exception:
-            # Clean up session if initialization fails
             self._session.close()
             raise
 
@@ -139,29 +126,29 @@ class Collector:
 
     def _init_sources(self) -> None:
         """Initialize the sources with the current settings."""
-        self.steamreview = sources.SteamReview(session=self._session)
-        self.steamstore = sources.SteamStore(
+        self.steamreview = SteamReview(session=self._session)
+        self.steamstore = SteamStore(
             region=self.region,
             language=self.language,
             api_key=self.steam_api_key,
             session=self._session,
         )
-        self.steamspy = sources.SteamSpy(session=self._session)
-        self.steamcharts = sources.SteamCharts(session=self._session)
-        self.howlongtobeat = sources.HowLongToBeat(session=self._session)
-        self.steamachievements = sources.SteamAchievements(
+        self.steamspy = SteamSpy(session=self._session)
+        self.steamcharts = SteamCharts(session=self._session)
+        self.howlongtobeat = HowLongToBeat(session=self._session)
+        self.steamachievements = SteamAchievements(
             api_key=self.steam_api_key,
             session=self._session,
         )
-        self.steamuser = sources.SteamUser(
+        self.steamuser = SteamUser(
             api_key=self.steam_api_key,
             session=self._session,
         )
-        self.protondb = sources.ProtonDB(session=self._session)
+        self.protondb = ProtonDB(session=self._session)
 
     def _init_sources_config(self) -> None:
         """Initialize sources config."""
-        self._id_based_sources = [
+        self._id_based_sources: list[SourceConfig] = [
             SourceConfig(
                 self.steamstore,
                 [
@@ -185,20 +172,6 @@ class Collector:
                 ],
                 is_primary=True,  # SteamStore is the primary source
             ),
-            # DISABLED: Gamalytic free endpoint removed. Re-enable by uncommenting
-            # when the endpoint is available again or a replacement is found.
-            # SourceConfig(
-            #     self.gamalytic,
-            #     [
-            #         "average_playtime_h",
-            #         "copies_sold",
-            #         "estimated_revenue",
-            #         "owners",
-            #         "languages",
-            #         "followers",
-            #         "early_access",
-            #     ],
-            # ),
             SourceConfig(
                 self.steamspy,
                 ["ccu", "tags", "discount", "average_playtime_min", "languages"],
@@ -237,7 +210,7 @@ class Collector:
             ),
         ]
 
-        self._name_based_sources = [
+        self._name_based_sources: list[SourceConfig] = [
             SourceConfig(
                 self.howlongtobeat,
                 [
@@ -338,20 +311,11 @@ class Collector:
             self.steamachievements.api_key = value
             self.steamuser.api_key = value
 
-    @property
-    def gamalytic_api_key(self) -> str | None:
-        return self._gamalytic_api_key
-
-    @gamalytic_api_key.setter
-    def gamalytic_api_key(self, value: str) -> None:
-        if self._gamalytic_api_key != value:
-            self._gamalytic_api_key = value
-
     def get_user_data(
         self,
         steamids: str | list[str],
         include_free_games: bool = True,
-        return_as: Literal["list", "dataframe"] = "dataframe",
+        return_as: ReturnFormat = "dataframe",
         verbose: bool = True,
     ) -> list[dict[str, Any]] | pd.DataFrame:
         """Fetch user data from provided steamids.
@@ -382,22 +346,17 @@ class Collector:
                 verbose=verbose,
             )
 
-            try:
-                fetch_result = self.steamuser.fetch(
-                    steamid=steamid, include_free_games=include_free_games, verbose=verbose
-                )
-                if fetch_result["success"]:
-                    user_data = fetch_result["data"]
-                    results.append(user_data)
-                else:
-                    user_data = {"steamid": steamid}
-                    results.append(user_data)
+            fetch_result = self.steamuser.fetch(
+                steamid=steamid, include_free_games=include_free_games, verbose=verbose
+            )
+            if fetch_result["success"]:
+                user_data = fetch_result["data"]
+                results.append(user_data)
+            else:
+                user_data = {"steamid": steamid}
+                results.append(user_data)
 
-                time.sleep(0.25)  # internal sleep to prevent over-calling
-            except Exception as e:
-                self.logger.log(
-                    f"Error fetching data for steamid {steamid}: {e}", level="error", verbose=True
-                )
+            time.sleep(0.25)  # internal sleep to prevent over-calling
 
         if return_as == "dataframe":
             pd = self._require_pandas()
@@ -448,7 +407,6 @@ class Collector:
               the function does not return a (data, results) tuple even if include_failures=True.
               The raise_on_error parameter takes precedence over include_failures.
         """
-        # Add input validation for raise_on_error mode
         if raise_on_error and not steam_appids:
             raise InvalidRequestError("steam_appids must be a non-empty string or list.")
 
@@ -474,19 +432,10 @@ class Collector:
                 result.append(payload)
                 all_results.append(FetchResult(identifier=str(appid), success=True, data=payload))
             except GameInsightsError as e:
-                # Re-raise if raise_on_error is True
                 if raise_on_error:
                     raise
-                # Otherwise log and continue (existing behavior)
                 self.logger.log(
                     f"Error fetching data for game {appid}: {e}",
-                    level="error",
-                    verbose=True,
-                )
-                all_results.append(FetchResult(identifier=str(appid), success=False, error=str(e)))
-            except Exception as e:
-                self.logger.log(
-                    f"Error fetching data for game {appid} with {e} error..",
                     level="error",
                     verbose=True,
                 )
@@ -503,7 +452,7 @@ class Collector:
         verbose: bool = True,
         include_failures: bool = False,
         *,
-        return_as: Literal["list", "dataframe"] = "list",
+        return_as: ReturnFormat = "list",
     ) -> (
         list[dict[str, Any]]
         | pd.DataFrame
@@ -604,29 +553,13 @@ class Collector:
                 all_results.append(FetchResult(identifier=str(appid), success=False, error=str(e)))
             all_data.append(game_record)
 
-        # Normalize records - fill missing values consistently
-        sorted_months = sorted(all_months)
-        fixed_columns = ["steam_appid", "name", "peak_active_player_all_time"]
-        # Only numeric columns should get fill_na_as; string columns stay as None/empty
-        numeric_columns = ["peak_active_player_all_time"] + sorted_months
-
-        normalized_data = []
-        for record in all_data:
-            normalized_record: dict[str, str | int | None] = {}
-            for col in fixed_columns + sorted_months:
-                value = record.get(col)
-                if col in numeric_columns:
-                    # Fill None or missing keys with fill_na_as for numeric columns
-                    normalized_record[col] = value if value is not None else fill_na_as
-                else:
-                    # String columns: keep as None or original value
-                    normalized_record[col] = value
-            normalized_data.append(normalized_record)
+        normalized_data, sorted_months, fixed_columns, numeric_columns = (
+            normalize_active_player_rows(all_data, all_months, fill_na_as)
+        )
 
         if return_as == "dataframe":
             pd = self._require_pandas()
             df = pd.DataFrame(normalized_data, columns=fixed_columns + sorted_months)
-            # Only fillna for numeric columns, not string columns
             df[numeric_columns] = df[numeric_columns].fillna(fill_na_as)
             return (df, all_results) if include_failures else df
 
@@ -638,7 +571,7 @@ class Collector:
         verbose: bool = True,
         review_only: bool = True,
         *,
-        return_as: Literal["list", "dataframe"] = "list",
+        return_as: ReturnFormat = "list",
     ) -> list[dict[str, Any]] | pd.DataFrame:
         """Fetch game reviews from Steam.
 
@@ -668,25 +601,18 @@ class Collector:
         )
 
         records: list[dict[str, Any]] = []
-        try:
-            reviews_data = self.steamreview.fetch(
-                steam_appid=steam_appid,
-                verbose=verbose,
-                filter="recent",
-                language="all",
-                review_type="all",
-                purchase_type="all",
-                mode="review",
-            )
+        reviews_data = self.steamreview.fetch(
+            steam_appid=steam_appid,
+            verbose=verbose,
+            filter="recent",
+            language="all",
+            review_type="all",
+            purchase_type="all",
+            mode="review",
+        )
 
-            if reviews_data["success"]:
-                records = (
-                    reviews_data["data"]["reviews"] if review_only else [reviews_data["data"]]
-                )
-        except Exception as e:
-            self.logger.log(
-                f"Error fetching reviews for appid {steam_appid}: {e}", level="error", verbose=True
-            )
+        if reviews_data["success"]:
+            records = reviews_data["data"]["reviews"] if review_only else [reviews_data["data"]]
 
         if return_as == "dataframe":
             pd = self._require_pandas()
@@ -731,7 +657,6 @@ class Collector:
             if source_data["success"]:
                 raw_data.update({key: source_data["data"][key] for key in config.fields})
             elif raise_on_primary_failure and config.is_primary:
-                # Primary source failed - raise appropriate exception
                 self._raise_for_fetch_failure(
                     source_name=config.source.__class__.__name__,
                     error_message=source_data["error"],
@@ -758,9 +683,9 @@ class Collector:
 
     def _fetch_with_observability(
         self,
-        source: sources.BaseSource,
+        source: BaseSource,
         identifier: str,
-        scope: Literal["id", "name"],
+        scope: Scope,
         verbose: bool,
     ) -> SourceResult:
         source_name = source.__class__.__name__
@@ -779,49 +704,25 @@ class Collector:
             ) as timing:
                 result = source.fetch(identifier, verbose=verbose)
         except Exception as exc:
-            metrics.counter("source_fetch_exception_total", source=source_name, scope=scope)
-            source.logger.log_event(
-                "source_fetch_exception",
-                level="error",
-                verbose=True,
-                scope=scope,
-                identifier=identifier,
-                error=str(exc),
-            )
+            record_fetch_exception(source_name, scope, source.logger, identifier, str(exc))
             raise
 
-        duration_ms = round(timing.duration * 1000, 2)
-        metrics.counter("source_fetch_total", source=source_name, scope=scope)
-        if result["success"]:
-            metrics.counter("source_fetch_success_total", source=source_name, scope=scope)
-        else:
-            metrics.counter("source_fetch_error_total", source=source_name, scope=scope)
-
-        source.logger.log_event(
-            "source_fetch_complete",
-            verbose=verbose,
-            scope=scope,
-            identifier=identifier,
-            success=result["success"],
-            duration_ms=duration_ms,
+        record_fetch_outcome(
+            source_name,
+            scope,
+            source.logger,
+            identifier,
+            verbose,
+            timing,
+            result["success"],
         )
 
         return result
 
     def __enter__(self) -> "Collector":
-        """Enter the context manager.
-
-        Returns:
-            The Collector instance.
-        """
         return self
 
     def __exit__(self, *args: object) -> None:
-        """Exit the context manager and close the session.
-
-        Args:
-            *args: Exception info from the with block (unused).
-        """
         try:
             self.close()
         except Exception as e:

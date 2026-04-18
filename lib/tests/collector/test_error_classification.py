@@ -10,7 +10,7 @@ from gameinsights import (
     SourceUnavailableError,
 )
 from gameinsights.sources import HowLongToBeat
-from gameinsights.sources.howlongtobeat import _SearchAuth
+from gameinsights.sources._schemas import _SearchAuth
 
 
 class TestCollectorErrorClassification:
@@ -26,12 +26,6 @@ class TestCollectorErrorClassification:
                 {"identifier": "12345"},
             ),
             (
-                "Gamalytic",
-                "Game with appid 12345 is not found.",
-                GameNotFoundError,
-                {"identifier": "12345"},
-            ),
-            (
                 "SteamUser",
                 "steamid 76561198000000000 not found.",
                 GameNotFoundError,
@@ -42,12 +36,6 @@ class TestCollectorErrorClassification:
                 "Failed to connect. Status code: 599.",
                 SourceUnavailableError,
                 {"source": "SteamStore"},
-            ),
-            (
-                "Gamalytic",
-                "Connection error occurred",
-                SourceUnavailableError,
-                {},
             ),
             (
                 "SteamCharts",
@@ -82,10 +70,8 @@ class TestCollectorErrorClassification:
         ],
         ids=[
             "steamstore_not_available",
-            "gamalytic_not_found_appid",
             "steamuser_not_found_steamid",
             "network_error_599",
-            "connection_error",
             "timeout_error",
             "http_error_status",
             "parse_error",

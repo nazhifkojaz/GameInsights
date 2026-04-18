@@ -57,9 +57,7 @@ async def get_game(
         raise GameNotFoundError(identifier=appid)
 
     data = results[0]
-    await cache.set(
-        cache_key, Endpoint.GAME, appid, settings.region, settings.language, data
-    )
+    await cache.set(cache_key, Endpoint.GAME, appid, settings.region, settings.language, data)
     return data
 
 
@@ -70,9 +68,7 @@ async def get_game_recap(
     cache: DatabaseCache = Depends(get_cache),
     settings: Settings = Depends(get_settings),
 ) -> dict[str, Any]:
-    cache_key = cache.make_key(
-        Endpoint.GAME_RECAP, appid, settings.region, settings.language
-    )
+    cache_key = cache.make_key(Endpoint.GAME_RECAP, appid, settings.region, settings.language)
     cached = await cache.get(cache_key)
     if cached is not None:
         return cached
@@ -123,9 +119,7 @@ async def get_game_active_players(
     cache: DatabaseCache = Depends(get_cache),
     settings: Settings = Depends(get_settings),
 ) -> list[dict[str, Any]]:
-    cache_key = cache.make_key(
-        Endpoint.GAME_PLAYERS, appid, settings.region, settings.language
-    )
+    cache_key = cache.make_key(Endpoint.GAME_PLAYERS, appid, settings.region, settings.language)
     cached = await cache.get(cache_key)
     if cached is not None:
         return cached
@@ -193,7 +187,11 @@ async def get_games_batch(
 
         endpoint = Endpoint.GAME_RECAP if request.recap else Endpoint.GAME
         fetched_by_id = {
-            str(item["steam_appid"] if "steam_appid" in item and item["steam_appid"] is not None else item["appid"]): item
+            str(
+                item["steam_appid"]
+                if "steam_appid" in item and item["steam_appid"] is not None
+                else item["appid"]
+            ): item
             for item in fetched_results
             if isinstance(item, dict)
         }

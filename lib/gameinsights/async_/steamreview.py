@@ -3,12 +3,13 @@ from typing import Any, Literal, cast
 import aiohttp
 
 from gameinsights.async_.base import AsyncBaseSource, _AsyncResponse
-from gameinsights.sources.base import SourceResult, SuccessResult
-from gameinsights.sources.steamreview import (
+from gameinsights.sources._parsers import transform_steamreview
+from gameinsights.sources._schemas import (
     _STEAMREVIEW_REVIEW_LABELS,
     _STEAMREVIEW_SUMMARY_LABELS,
     SteamReviewResponse,
 )
+from gameinsights.sources.base import SourceResult, SuccessResult
 from gameinsights.utils.async_ratelimit import async_rate_limited
 
 
@@ -110,36 +111,4 @@ class AsyncSteamReview(AsyncBaseSource):
         data: dict[str, Any],
         data_type: Literal["summary", "review"] = "summary",
     ) -> dict[str, Any]:
-        if data_type == "summary":
-            return {
-                "review_score": data.get("review_score"),
-                "review_score_desc": data.get("review_score_desc"),
-                "total_positive": data.get("total_positive"),
-                "total_negative": data.get("total_negative"),
-                "total_reviews": data.get("total_reviews"),
-            }
-        else:
-            author = data.get("author", {})
-            return {
-                "recommendation_id": data.get("recommendationid"),
-                "author_steamid": author.get("steamid"),
-                "author_num_games_owned": author.get("num_games_owned"),
-                "author_num_reviews": author.get("num_reviews"),
-                "author_playtime_forever": author.get("playtime_forever"),
-                "author_playtime_last_two_weeks": author.get("playtime_last_two_weeks"),
-                "author_playtime_at_review": author.get("playtime_at_review"),
-                "author_last_played": author.get("last_played"),
-                "language": data.get("language"),
-                "review": data.get("review"),
-                "timestamp_created": data.get("timestamp_created"),
-                "timestamp_updated": data.get("timestamp_updated"),
-                "voted_up": data.get("voted_up"),
-                "votes_up": data.get("votes_up"),
-                "votes_funny": data.get("votes_funny"),
-                "weighted_vote_score": data.get("weighted_vote_score"),
-                "comment_count": data.get("comment_count"),
-                "steam_purchase": data.get("steam_purchase"),
-                "received_for_free": data.get("received_for_free"),
-                "written_during_early_access": data.get("written_during_early_access"),
-                "primarily_steam_deck": data.get("primarily_steam_deck"),
-            }
+        return transform_steamreview(data, data_type=data_type)

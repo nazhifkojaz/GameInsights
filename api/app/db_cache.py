@@ -13,9 +13,7 @@ class DatabaseCache:
         self._session_factory = session_factory
 
     @staticmethod
-    def make_key(
-        endpoint: Endpoint, identifier: str, region: str, language: str
-    ) -> str:
+    def make_key(endpoint: Endpoint, identifier: str, region: str, language: str) -> str:
         """Generate a human-readable cache key."""
         return f"{endpoint}:{identifier}:{region}:{language}"
 

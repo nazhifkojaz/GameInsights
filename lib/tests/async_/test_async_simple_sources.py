@@ -1,8 +1,7 @@
-"""Tests for simple single-call async sources: SteamStore, SteamSpy, ProtonDB, Gamalytic."""
+"""Tests for simple single-call async sources: SteamStore, SteamSpy, ProtonDB."""
 
 from __future__ import annotations
 
-from gameinsights.async_.gamalytic import AsyncGamalytic
 from gameinsights.async_.protondb import AsyncProtonDB
 from gameinsights.async_.steamspy import AsyncSteamSpy
 from gameinsights.async_.steamstore import AsyncSteamStore
@@ -168,46 +167,5 @@ class TestAsyncProtonDB:
     ) -> None:
         mock_async_request(AsyncProtonDB, status_code=503)
         src = AsyncProtonDB()
-        result = await src.fetch("570", verbose=False)
-        assert result["success"] is False
-
-
-# ---------------------------------------------------------------------------
-# AsyncGamalytic
-# ---------------------------------------------------------------------------
-
-
-class TestAsyncGamalytic:
-    async def test_async_gamalytic_fetch_success(
-        self, mock_async_request, stub_async_ratelimit
-    ) -> None:
-        json_data = {
-            "steamId": "570",
-            "name": "Dota 2",
-            "followers": 500000,
-            "avgPlaytime": 120.5,
-            "reviewScore": 0.85,
-        }
-        mock_async_request(AsyncGamalytic, json_data=json_data)
-        src = AsyncGamalytic()
-        result = await src.fetch("570", verbose=False)
-        assert result["success"] is True
-        assert result["data"]["name"] == "Dota 2"
-        assert result["data"]["followers"] == 500000
-
-    async def test_async_gamalytic_fetch_not_found(
-        self, mock_async_request, stub_async_ratelimit
-    ) -> None:
-        mock_async_request(AsyncGamalytic, status_code=404)
-        src = AsyncGamalytic()
-        result = await src.fetch("570", verbose=False)
-        assert result["success"] is False
-        assert "not found" in result["error"]
-
-    async def test_async_gamalytic_fetch_api_failure(
-        self, mock_async_request, stub_async_ratelimit
-    ) -> None:
-        mock_async_request(AsyncGamalytic, status_code=500)
-        src = AsyncGamalytic()
         result = await src.fetch("570", verbose=False)
         assert result["success"] is False

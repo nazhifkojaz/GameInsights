@@ -5,7 +5,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from gameinsights.sources import HowLongToBeat
-from gameinsights.sources.howlongtobeat import _SearchAuth
+from gameinsights.sources._schemas import _SearchAuth
 
 
 @pytest.fixture(autouse=True)

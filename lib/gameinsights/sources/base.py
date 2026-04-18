@@ -1,7 +1,6 @@
 import time
-import warnings
 from abc import ABC, abstractmethod
-from typing import Any, Literal, TypedDict
+from typing import Any, Generic, Literal, TypedDict, TypeVar
 from urllib.parse import urljoin
 
 import requests
@@ -16,12 +15,30 @@ from requests.exceptions import (
     TooManyRedirects,
 )
 
+from gameinsights._types import HttpMethod
+from gameinsights.sources._helpers import (
+    apply_label_filter as _apply_label_filter,
+)
+from gameinsights.sources._helpers import (
+    build_error_result as _build_error_result,
+)
+from gameinsights.sources._helpers import (
+    fetch_and_parse_json as _fetch_and_parse_json,
+)
+from gameinsights.sources._helpers import (
+    filter_valid_labels as _filter_valid_labels,
+)
+from gameinsights.sources._helpers import (
+    prepare_identifier as _prepare_identifier,
+)
 from gameinsights.utils import LoggerWrapper
 
+T = TypeVar("T")
 
-class SuccessResult(TypedDict):
+
+class SuccessResult(TypedDict, Generic[T]):
     success: Literal[True]
-    data: dict[str, Any]
+    data: T
 
 
 class ErrorResult(TypedDict):
@@ -29,9 +46,8 @@ class ErrorResult(TypedDict):
     error: str
 
 
-SourceResult = SuccessResult | ErrorResult
+SourceResult = SuccessResult[dict[str, Any]] | ErrorResult
 
-# a custom error code for the synthetic response
 SYNTHETIC_ERROR_CODE = 599
 
 
@@ -74,20 +90,6 @@ class BaseSource(ABC):
             self._session.mount("http://", adapter)
         return self._session
 
-    @staticmethod
-    def close_session() -> None:
-        """Deprecated. Session lifecycle is now managed by Collector.
-
-        This method is a no-op. Use ``Collector.close()`` or the
-        Collector as a context manager instead.
-        """
-        warnings.warn(
-            "BaseSource.close_session() is deprecated and has no effect. "
-            "Use Collector.close() or the Collector context manager instead.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-
     @property
     @abstractmethod
     def _valid_labels(self) -> tuple[str, ...]:
@@ -108,7 +110,7 @@ class BaseSource(ABC):
     @abstractmethod
     def fetch(
         self, appid: str, verbose: bool = True, selected_labels: list[str] | None = None
-    ) -> SuccessResult | ErrorResult:
+    ) -> SourceResult:
         """Abstract method to fetch data from the source.
 
         Args:
@@ -129,7 +131,7 @@ class BaseSource(ABC):
         params: dict[str, Any] | None = None,
         json: dict[str, Any] | None = None,
         data: str | bytes | None = None,
-        method: Literal["GET", "POST"] = "GET",
+        method: HttpMethod = "GET",
         retries: int = 3,
         backoff_factor: float = 0.5,
         timeout: float | tuple[float, float] = (30, 60),
@@ -143,7 +145,7 @@ class BaseSource(ABC):
             params (dict | None): Optional query parameters dictionary
             json (dict | None): Optional JSON body for POST requests (auto-serialized)
             data (str | bytes | None): Optional raw body for POST requests
-            method (Literal["GET", "POST"]): HTTP method to use (default: "GET")
+            method (HttpMethod): HTTP method to use (default: "GET")
             retries (int): Max number of retries
             backoff_factor (float): Multiplier for sleep/cooldown between retries
             timeout (float | tuple): Request timeout in seconds
@@ -156,11 +158,9 @@ class BaseSource(ABC):
         if endpoint:
             final_url = urljoin(final_url + "/", endpoint.rstrip("/"))
 
-        # Prepare headers with User-Agent
         if headers is None:
             headers = {"User-Agent": self._ua.random}
         else:
-            # Only add User-Agent if not already present
             if "User-Agent" not in headers:
                 headers = headers.copy()
                 headers["User-Agent"] = self._ua.random
@@ -234,111 +234,33 @@ class BaseSource(ABC):
     def _filter_valid_labels(
         self, selected_labels: list[str], valid_labels: list[str] | tuple[str, ...] | None = None
     ) -> list[str]:
-        """Filter the selected labels to only include valid labels.
-
-        Args:
-            selected_labels (list[str]): A list of labels to filter.
-            valid_labels (list[str] | tuple[str, ...] | None): Valid labels to compare with. If None, uses the class's valid labels.
-        Returns:
-            list[str]: A list of valid labels.
-        """
-
-        validation_set = (
-            frozenset(valid_labels) if valid_labels is not None else self._valid_labels_set
+        return _filter_valid_labels(
+            selected_labels,
+            valid_labels=valid_labels,
+            class_valid_labels_set=self._valid_labels_set,
+            class_valid_labels=self._valid_labels,
+            log_fn=self.logger.log,
         )
-
-        valid: list[str] = []
-        invalid: list[str] = []
-        for label in selected_labels:
-            (valid if label in validation_set else invalid).append(label)
-
-        # log the invalid labels if any
-        if invalid:
-            reference_labels = valid_labels if valid_labels is not None else self._valid_labels
-            self.logger.log(
-                f"Ignoring the following invalid labels: {invalid}, valid labels are: {reference_labels}",
-                level="warning",
-                verbose=True,
-            )
-
-        return valid
 
     def _build_error_result(self, error_message: str, verbose: bool = True) -> ErrorResult:
-        """Error message/returns handler.
-        Args:
-            error_message (str): Error Message.
-            verbose (bool): If True, will log the error message. (Default to True)
-        Returns:
-            ErrorResult: A dictionary containing the ErrorResult.
-        """
-        self.logger.log(error_message, level="error", verbose=verbose)
-
-        return ErrorResult(success=False, error=error_message)
+        return _build_error_result(error_message, self.logger.log, verbose)
 
     def _prepare_identifier(self, identifier: str, verbose: bool = True) -> str:
-        """Convert identifier to string and log fetch start.
-
-        Args:
-            identifier: The game identifier (appid, name, etc.)
-            verbose: Whether to log
-
-        Returns:
-            String representation of identifier
-        """
-        identifier_str = str(identifier)
-        self.logger.log(
-            f"Fetching data for appid {identifier_str}.",
-            level="info",
-            verbose=verbose,
-        )
-        return identifier_str
+        return _prepare_identifier(identifier, self.logger.log, verbose)
 
     def _fetch_and_parse_json(
         self,
         response: requests.Response,
-        verbose: bool = True,
     ) -> dict[str, Any] | None:
-        """Parse JSON response with error handling.
-
-        Args:
-            response: HTTP response object
-            verbose: Whether to log errors
-
-        Returns:
-            Parsed JSON data, or None if request failed or parsing failed
-        """
-        if response.status_code != 200:
-            return None
-
-        try:
-            data = response.json()
-            # Type narrowing: requests.Response.json() returns Any, but we expect dict
-            if isinstance(data, dict):
-                return data
-            return None
-        except Exception:
-            # Don't log here - let the caller build the error result
-            # This allows custom error messages per source
-            return None
+        return _fetch_and_parse_json(response)
 
     def _apply_label_filter(
         self,
         data: dict[str, Any],
         selected_labels: list[str] | None,
     ) -> dict[str, Any]:
-        """Filter data by selected labels if provided.
-
-        Args:
-            data: The data dictionary to filter
-            selected_labels: Labels to include (None = all labels)
-
-        Returns:
-            Filtered data dictionary
-        """
-        if selected_labels:
-            return {
-                label: data[label]
-                for label in self._filter_valid_labels(selected_labels)
-                if label in data
-            }
-        return data
+        if not selected_labels:
+            return data
+        return _apply_label_filter(
+            data, selected_labels, self._filter_valid_labels(selected_labels)
+        )

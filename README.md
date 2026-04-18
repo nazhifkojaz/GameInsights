@@ -1,6 +1,6 @@
 # GameInsights
 
-A unified tool for collecting Steam game data from multiple sources. Fetch steam game data based on its `steam_appid` from Steam Store, Steam Charts, Steam Reviews, Steam Spy, Gamalytic, HowLongToBeat, and Steam Web API.
+A unified tool for collecting Steam game data from multiple sources. Fetch steam game data based on its `steam_appid` from Steam Store, Steam Charts, Steam Reviews, Steam Spy, HowLongToBeat, and Steam Web API.
 
 
 ## Table of Contents
@@ -124,7 +124,6 @@ poetry run gameinsights collect --appid 570 --appid 730 --format json
 poetry run gameinsights collect \
   --appid 570 \
   --source steamstore \
-  --source gamalytic \
   --recap \
   --format csv \
   --output dota2.csv
@@ -140,7 +139,6 @@ poetry run gameinsights collect --appid 570 --quiet
 - **Steam Web API**:  
   - `SteamUser` → requires `steam_api_key` ([Get it here](https://steamcommunity.com/dev/apikey)).
   - `SteamAchievements` → global percentages work without a key; schema/details require a key.
-- **Gamalytic**: No key for now (API key support planned).
 - **HowLongToBeat**: No key; scraping-based (inspired by [HowLongToBeat-PythonAPI](https://github.com/ScrappyCocco/HowLongToBeat-PythonAPI)).
 - **Steam Charts**: No key; BeautifulSoup scraping.
 - **Steam Spy**: No key.
@@ -156,7 +154,6 @@ poetry run gameinsights collect --appid 570 --quiet
 - Steam Charts: ~60 requests/min
 - HowLongToBeat: ~60 requests/min (polite scraping)
 - Steam Spy: ~60 requests/min
-- Gamalytic: ~500 requests/day
 - Steam Achievements: ~100,000 requests/day
 - Steam User: ~100,000 requests/day (small internal sleeps via `Collector`)
 - Steam Review: ~100,000/day (0.5s sleep per page)
@@ -179,7 +176,7 @@ poetry run gameinsights collect --appid 570 --quiet
 Comprehensive schemas live in [`docs/`](docs):
 
 - [`docs/data_dictionary.md`](docs/data_dictionary.md) — canonical schema for the merged `GameDataModel`.
-- [`docs/sources/`](docs/sources) — per-source field references (Steam Store, Steam Spy, SteamCharts, Steam Review, Gamalytic, HowLongToBeat, Steam Achievements, Steam User).
+- [`docs/sources/`](docs/sources) — per-source field references (Steam Store, Steam Spy, SteamCharts, Steam Review, HowLongToBeat, Steam Achievements, Steam User).
 
 ## Data Model
 
@@ -195,11 +192,7 @@ When `recap=False` (default), `get_games_data` returns **full normalized models*
 - **release_date / days_since_release**: Datetime & derived days (Steam Store)
 - **is_free**: Free-to-play flag (Steam Store)
 - **is_coming_soon**: Upcoming/pre-order flag (Steam Store)
-- **early_access**: Early access flag (Gamalytic)
 - **recommendations**: User recommendation count (Steam Store)
-- **followers**: Steam wishlist/follower count (Gamalytic)
-- **average_playtime_h / average_playtime**: Hours & seconds (Gamalytic)
-- **copies_sold / estimated_revenue / owners**: Sales estimates (Gamalytic)
 - **ccu**: Concurrent users (Steam Spy)
 - **active_player_24h / peak_active_player_all_time**: Peaks (Steam Charts)
 - **monthly_active_player**: Time series data (Steam Charts)
@@ -214,7 +207,7 @@ When `recap=False` (default), `get_games_data` returns **full normalized models*
 - `steam_appid`, `name`, `developers`, `publishers`, `type`
 - `release_date`, `days_since_release`
 - `price_currency`, `price_initial`, `price_final`
-- `is_free`, `early_access`, `copies_sold`, `estimated_revenue`, `owners`, `followers`
+- `is_free`
 - `total_positive`, `total_negative`, `total_reviews`, `metacritic_score`
 - `comp_main`, `comp_plus`, `comp_100`, `comp_all`, `invested_co`, `invested_mp`, `average_playtime`
 - `active_player_24h`, `peak_active_player_all_time`

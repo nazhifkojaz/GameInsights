@@ -7,7 +7,7 @@ from unittest.mock import AsyncMock, patch
 
 from gameinsights.async_.base import _AsyncResponse
 from gameinsights.async_.howlongtobeat import AsyncHowLongToBeat
-from gameinsights.sources.howlongtobeat import _SearchAuth
+from gameinsights.sources._schemas import _SearchAuth
 
 _MOCK_AUTH = _SearchAuth(
     token="mock_token",

@@ -19,7 +19,7 @@ class TestFetchAndParseJson:
         mock_response = Mock()
         mock_response.status_code = 404
 
-        result = source._fetch_and_parse_json(mock_response, verbose=False)
+        result = source._fetch_and_parse_json(mock_response)
 
         assert result is None
 
@@ -32,7 +32,7 @@ class TestFetchAndParseJson:
         mock_response.status_code = 200
         mock_response.json.return_value = expected_data
 
-        result = source._fetch_and_parse_json(mock_response, verbose=False)
+        result = source._fetch_and_parse_json(mock_response)
 
         assert result == expected_data
 
@@ -45,7 +45,7 @@ class TestFetchAndParseJson:
         mock_response.status_code = 200
         mock_response.json.return_value = ["item1", "item2"]
 
-        result = source._fetch_and_parse_json(mock_response, verbose=False)
+        result = source._fetch_and_parse_json(mock_response)
 
         assert result is None
 

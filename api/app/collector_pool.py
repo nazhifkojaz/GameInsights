@@ -8,9 +8,7 @@ from app.config import Settings
 class CollectorPool:
     def __init__(self, settings: Settings) -> None:
         self._settings = settings
-        self._queue: asyncio.Queue[Collector] = asyncio.Queue(
-            maxsize=settings.collector_pool_size
-        )
+        self._queue: asyncio.Queue[Collector] = asyncio.Queue(maxsize=settings.collector_pool_size)
         self._collectors: list[Collector] = []
         self._closed = False
 
@@ -22,11 +20,6 @@ class CollectorPool:
                 steam_api_key=(
                     self._settings.steam_api_key.get_secret_value()
                     if self._settings.steam_api_key
-                    else None
-                ),
-                gamalytic_api_key=(
-                    self._settings.gamalytic_api_key.get_secret_value()
-                    if self._settings.gamalytic_api_key
                     else None
                 ),
                 calls=self._settings.rate_limit_calls,

@@ -3,8 +3,9 @@ from typing import Any
 import aiohttp
 
 from gameinsights.async_.base import AsyncBaseSource
+from gameinsights.sources._parsers import transform_steamspy
+from gameinsights.sources._schemas import _STEAMSPY_LABELS
 from gameinsights.sources.base import SourceResult, SuccessResult
-from gameinsights.sources.steamspy import _STEAMSPY_LABELS
 from gameinsights.utils.async_ratelimit import async_rate_limited
 
 
@@ -27,7 +28,7 @@ class AsyncSteamSpy(AsyncBaseSource):
         params = {"request": "appdetails", "appid": steam_appid}
         response = await self._make_request(params=params)
 
-        data = self._fetch_and_parse_json(response, verbose)
+        data = self._fetch_and_parse_json(response)
         if data is None:
             return self._build_error_result(
                 f"Failed to connect to API. Status code: {response.status_code}", verbose=verbose
@@ -44,35 +45,4 @@ class AsyncSteamSpy(AsyncBaseSource):
         )
 
     def _transform_data(self, data: dict[str, Any]) -> dict[str, Any]:
-        tags = data.get("tags", [])
-        tags = [tag for tag in tags] if isinstance(tags, dict) else []
-
-        raw_languages = data.get("languages")
-        if isinstance(raw_languages, str):
-            languages = [lang.strip() for lang in raw_languages.split(",") if lang.strip()]
-        elif isinstance(raw_languages, list):
-            languages = raw_languages
-        else:
-            languages = []
-
-        return {
-            "steam_appid": data.get("appid"),
-            "name": data.get("name"),
-            "developers": data.get("developer"),
-            "publishers": data.get("publisher"),
-            "positive_reviews": data.get("positive"),
-            "negative_reviews": data.get("negative"),
-            "owners": data.get("owners"),
-            "average_forever": data.get("average_forever"),
-            "average_playtime_min": data.get("average_forever"),
-            "average_2weeks": data.get("average_2weeks"),
-            "median_forever": data.get("median_forever"),
-            "median_2weeks": data.get("median_2weeks"),
-            "price": data.get("price"),
-            "initial_price": data.get("initialprice"),
-            "discount": data.get("discount"),
-            "ccu": data.get("ccu"),
-            "languages": languages,
-            "genres": data.get("genre"),
-            "tags": tags,
-        }
+        return transform_steamspy(data)

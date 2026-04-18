@@ -17,9 +17,7 @@ def create_engine(settings: Settings) -> AsyncEngine:
         raise ValueError("database_url is required")
     url = _ensure_async_driver(settings.database_url)
     connect_args = _build_connect_args(settings.database_url)
-    return create_async_engine(
-        url, pool_size=2, max_overflow=8, connect_args=connect_args
-    )
+    return create_async_engine(url, pool_size=2, max_overflow=8, connect_args=connect_args)
 
 
 def create_session_factory(engine: AsyncEngine) -> async_sessionmaker[AsyncSession]:
